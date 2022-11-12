@@ -1,0 +1,9 @@
+function drone if exit from the boundary
+generate the sphere and cache them
+
+start easy with a simple function that is a reward, normalize the reward and the observation based on the distance reach from the drone
+gives reward when the drone continue to the x axix and not when go back
+
+defining starting point of the drone -5 or -10 in the x
+
+avoid reward hacking -> infinite reward
