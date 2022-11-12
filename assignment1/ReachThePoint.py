@@ -11,6 +11,22 @@ Check Ray's status at:
 
     http://127.0.0.1:8265
 
+
+
+ActionType:
+    RPM = "rpm"                 # RPMS
+    DYN = "dyn"                 # Desired thrust and torques
+    PID = "pid"                 # PID control
+    VEL = "vel"                 # Velocity input (using PID control)
+    TUN = "tun"                 # Tune the coefficients of a PID controller
+    ONE_D_RPM = "one_d_rpm"     # 1D (identical input to all motors) with RPMs
+    ONE_D_DYN = "one_d_dyn"     # 1D (identical input to all motors) with desired thrust and torques
+    ONE_D_PID = "one_d_pid"     # 1D (identical input to all motors) with PID control
+
+ObservationType(Enum):
+    KIN = "kin"     # Kinematic information (pose, linear and angular velocities)
+    RGB = "rgb"     # RGB camera capture in each drone's POV
+
 """
 import os
 import time
@@ -48,9 +64,6 @@ from ray.rllib.env.multi_agent_env import ENV_STATE
 from utils import build_env_by_name, from_env_name_to_class
 import shared_constants
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
-from gym_pybullet_drones.envs.multi_agent_rl.FlockAviary import FlockAviary
-from gym_pybullet_drones.envs.multi_agent_rl.LeaderFollowerAviary import LeaderFollowerAviary
-from gym_pybullet_drones.envs.multi_agent_rl.ReachThePointAviary import ReachThePointAviary
 from gym_pybullet_drones.envs.multi_agent_rl.MeetupAviary import MeetupAviary
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
 from gym_pybullet_drones.utils.Logger import Logger
@@ -93,11 +106,12 @@ if __name__ == "__main__":
     if not os.path.exists(filename):
         os.makedirs(filename + '/')
 
-    #### Print out current git commit hash #####################
-    if platform == "linux" or platform == "darwin":
-        git_commit = subprocess.check_output(["git", "describe", "--tags"]).strip()
-        with open(filename + '/git_commit.txt', 'w+') as f:
-            f.write(str(git_commit))
+    #
+    # #### Print out current git commit hash #####################
+    # if platform == "linux" or platform == "darwin":
+    #     git_commit = subprocess.check_output(["git", "describe", "--tags"]).strip()
+    #     with open(filename + '/git_commit.txt', 'w+') as f:
+    #         f.write(str(git_commit))
 
     #### Constants, and errors #################################
     if ARGS.obs == ObservationType.KIN:
