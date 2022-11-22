@@ -293,6 +293,8 @@ class BaseMultiagentAviary(BaseAviary, MultiAgentEnv):
             # return spaces.Box( low=obs_lower_bound, high=obs_upper_bound, dtype=np.float32 )
             ############################################################
             #### OBS SPACE OF SIZE 12
+
+            # aggiungere 4 numeri per la dimensione delle sfere x 10 volte che sono le sfere
             return spaces.Dict({i: spaces.Box(low=np.array([-1,-1,0, -1,-1,-1, -1,-1,-1, -1,-1,-1]),
                                               high=np.array([1,1,1, 1,1,1, 1,1,1, 1,1,1]),
                                               dtype=np.float32

@@ -7,3 +7,6 @@ gives reward when the drone continue to the x axix and not when go back
 defining starting point of the drone -5 or -10 in the x
 
 avoid reward hacking -> infinite reward
+
+last training
+/results/save-ReachThePointAviary-2-cc-kin-pid-11.18.2022_18.33.27

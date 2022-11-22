@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     #### Constants, and errors #################################
     if ARGS.obs == ObservationType.KIN:
-        OWN_OBS_VEC_SIZE = 12
+        OWN_OBS_VEC_SIZE = 52
     elif ARGS.obs == ObservationType.RGB:
         print("[ERROR] ObservationType.RGB for multi-agent systems not yet implemented")
         exit(2)
@@ -140,23 +140,39 @@ if __name__ == "__main__":
     ray.init(ignore_reinit_error=True, local_mode=ARGS.debug)
     from ray import tune
 
+    INIT_XYZS = np.vstack([np.array([0, -5]), \
+                                        np.array([0, 0]), \
+                                        np.ones(2)]).transpose().reshape(2, 3)
+    #
+    # INIT_XYZS = np.vstack([np.array([9.3, -5]), \
+    #                        np.array([3.4508020977360783, 0]), \
+    #                        np.array([5.722600605763271, 1])]).transpose().reshape(2, 3)
+
+    #9.468482773404116, 3.4508020977360783, 5.722600605763271
+
     env_callable, obs_space, act_space, temp_env = build_env_by_name(env_class=from_env_name_to_class(ARGS.env),
                                                                      num_drones=ARGS.num_drones,
                                                                      aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
                                                                      obs=ARGS.obs,
                                                                      act=ARGS.act,
-                                                                     gui=ARGS.gui
+                                                                     gui=ARGS.gui,
+                                                                     initial_xyzs = INIT_XYZS
                                                                      )
     #### Register the environment ##############################
     register_env(ARGS.env, env_callable)
 
+
     config = {
         "env": ARGS.env,
+        "gamma":0.999,  #0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
+        "no_done_at_end": True,
         "framework": "torch",
-        # "lr": 5e-3,
+        "lr": 5e-3, #0.003
+        "optimizer": "adam",
+        #"lambda" : 0.95,
         "multiagent": {
             # We only have one policy (calling it "shared").
             # Class, obs/act-spaces, and config will be derived
@@ -167,10 +183,11 @@ if __name__ == "__main__":
             },
             "policy_mapping_fn": lambda x: "pol0" if x == 0 else "pol1",
             # Always use "shared" policy.
+
         }
     }
     stop = {
-        "timesteps_total": 10000,  # 100000 ~= 10'
+        "timesteps_total": 2000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
@@ -185,7 +202,7 @@ if __name__ == "__main__":
             progress_reporter=CLIReporter(max_progress_rows=10),
             # checkpoint_freq=50000,
             checkpoint_at_end=True,
-            local_dir=filename,
+            local_dir=filename
         )
 
         # check_learning_achieved(results, 1.0)
@@ -233,7 +250,8 @@ if __name__ == "__main__":
             print("[ERROR] unknown ActionType")
             exit()
         start = time.time()
-        for i in range(6 * int(temp_env.SIM_FREQ / temp_env.AGGR_PHY_STEPS)):  # Up to 6''
+        duration = 200
+        for i in range(duration * int(temp_env.SIM_FREQ / temp_env.AGGR_PHY_STEPS)):  # Up to 6''
             #### Deploy the policies ###################################
             temp = {}
             temp[0] = policy0.compute_single_action(

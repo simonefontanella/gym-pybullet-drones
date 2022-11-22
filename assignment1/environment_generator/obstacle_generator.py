@@ -40,7 +40,7 @@ class Trajectory:
 
         self.name = None
         self.t = np.zeros((self.N, 1), dtype=float)
-        self.t = np.arange(0, max_time, self.dt)
+        self.t = np.arange(0, max2_time, self.dt)
 
         self.config = config
         self.generateTrajectory(traj_type)

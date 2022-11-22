@@ -154,11 +154,11 @@ if __name__ == "__main__":
     if not os.path.exists(filename):
         os.makedirs(filename+'/')
 
-    #### Print out current git commit hash #####################
-    if platform == "linux" or platform == "darwin":
-        git_commit = subprocess.check_output(["git", "describe", "--tags"]).strip()
-        with open(filename+'/git_commit.txt', 'w+') as f:
-            f.write(str(git_commit))
+    # #### Print out current git commit hash #####################
+    # if platform == "linux" or platform == "darwin":
+    #     git_commit = subprocess.check_output(["git", "describe", "--tags"]).strip()
+    #     with open(filename+'/git_commit.txt', 'w+') as f:
+    #         f.write(str(git_commit))
 
     #### Constants, and errors #################################
     if ARGS.obs==ObservationType.KIN:
@@ -191,6 +191,7 @@ if __name__ == "__main__":
 
     #### Register the environment ##############################
     temp_env_name = "this-aviary-v0"
+    ARGS.env = "leaderfollower"
     if ARGS.env == 'flock':
         register_env(temp_env_name, lambda _: FlockAviary(num_drones=ARGS.num_drones,
                                                           aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
