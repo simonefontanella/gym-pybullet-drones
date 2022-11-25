@@ -1,4 +1,5 @@
-import numpy as np
+MIN_X = 5
+MAX_X = 5
 
-a = np.array((2,[-5,0,0]))
-print(a.shape)
+if (MIN_X >= 5 >= MAX_X):
+    print("va")
