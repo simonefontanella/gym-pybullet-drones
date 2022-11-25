@@ -10,3 +10,17 @@ avoid reward hacking -> infinite reward
 
 last training
 /results/save-ReachThePointAviary-2-cc-kin-pid-11.18.2022_18.33.27
+con reward negativa solo se hitta la sfera
+/results/save-ReachThePointAviary-2-cc-kin-pid-11.23.2022_21.02.02
+
+diminuire gli hertz
+
+
+Pitch è la rotazione sull?asse trasversale, ovvero la rotazione in ?avanti? ed ?indietro? per muoversi verso queste direzioni. Spostando la leva del Pitch in avanti, il drone si inclina in avanti abbassando il muso e quindi diminuendo la velocità dei motori anteriori ed alzando la coda, aumentando la velocità dei motori posteriori.
+Roll è la rotazione sull?asse longitudinale, ovvero la rotazione verso destra sinistra che permette al quad di muoversi verso queste due direzioni.
+Yaw è la rotazione sull?asse verticale, e permette appunto la rotazione a 360° del quadricottero sul proprio asse. Spostando la levetta dello Yaw verso sinistra il quad ruota verso sinistra e viceversa spostandola verso destra, ruota in senso orario verso destra.
+Throttle o Gas è la potenza trasmessa ai motori che aumentano o diminuiscono la loro velocità di rotazione.
+
+istruzioni del tizio indiano
++100 se arriva a 60 metri
+dare sempre reward negativi (xpos -0.5) e dividerli per la abs(velocità corrente), in modo da decrementare i reward negativi se il drone prende velocità

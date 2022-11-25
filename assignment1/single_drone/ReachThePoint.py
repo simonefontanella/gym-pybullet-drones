@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     #### Constants, and errors #################################
     if ARGS.obs == ObservationType.KIN:
-        OWN_OBS_VEC_SIZE = 42
+        OWN_OBS_VEC_SIZE = 52
     elif ARGS.obs == ObservationType.RGB:
         print("[ERROR] ObservationType.RGB for multi-agent systems not yet implemented")
         exit(2)
@@ -140,8 +140,8 @@ if __name__ == "__main__":
     ray.init(ignore_reinit_error=True, local_mode=ARGS.debug)
     from ray import tune
     #
-    INIT_XYZS = np.vstack([np.array([0, -2]), \
-                                        np.array([0, -3]), \
+    INIT_XYZS = np.vstack([np.array([0, -5]), \
+                                        np.array([0, 0]), \
                                         np.ones(2)]).transpose().reshape(2, 3)
 
     # INIT_XYZS = np.vstack([np.array([9.2, -5]), \
@@ -164,15 +164,15 @@ if __name__ == "__main__":
 
     config = {
         "env": ARGS.env,
-        "gamma":0.99,  #0.999
+        "gamma":0.9999,  #0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "no_done_at_end": True,
         "framework": "torch",
-        "lr": 3e-4, #0.003
+        "lr": 5e-3, #0.003
         "optimizer": "adam",
-       # "num_envs_per_worker": 4,
+        "num_envs_per_worker": 8,
         #"lambda" : 0.95,
         "multiagent": {
             # We only have one policy (calling it "shared").
@@ -188,13 +188,12 @@ if __name__ == "__main__":
         }
     }
     stop = {
-        "timesteps_total": 500000,  # 100000 ~= 10'
+        "timesteps_total": 300000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
 
     if not ARGS.exp:
-        #logId = p.startStateLogging(p.STATE_LOGGING_PROFILE_TIMINGS, "./logging/timings.json")
 
         results = tune.run(
             "PPO",
