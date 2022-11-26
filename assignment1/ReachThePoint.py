@@ -74,6 +74,74 @@ from ray.rllib.examples.models.shared_weights_model import (
     TorchSharedWeightsModel,
 )
 
+class CustomTorchCentralizedCriticModel(TorchModelV2, nn.Module):
+    """Multi-agent model that implements a centralized value function.
+
+    It assumes the observation is a dict with 'own_obs' and 'opponent_obs', the
+    former of which can be used for computing actions (i.e., decentralized
+    execution), and the latter for optimization (i.e., centralized learning).
+
+    This model has two parts:
+    - An action model that looks at just 'own_obs' to compute actions
+    - A value model that also looks at the 'opponent_obs' / 'opponent_action'
+      to compute the value (it does this by using the 'obs_flat' tensor).
+    """
+
+    def __init__(self, obs_space, action_space, num_outputs, model_config, name):
+        TorchModelV2.__init__(self, obs_space, action_space, num_outputs, model_config, name)
+        nn.Module.__init__(self)
+        self.action_model = FullyConnectedNetwork(
+                                                  Box(low=-1, high=1, shape=(OWN_OBS_VEC_SIZE, )),
+                                                  action_space,
+                                                  num_outputs,
+                                                  model_config,
+                                                  name + "_action"
+                                                  )
+        self.value_model = FullyConnectedNetwork(
+                                                 obs_space,
+                                                 action_space,
+                                                 1,
+                                                 model_config,
+                                                 name + "_vf"
+                                                 )
+        self._model_in = None
+
+    def forward(self, input_dict, state, seq_lens):
+        self._model_in = [input_dict["obs_flat"], state, seq_lens]
+        return self.action_model({"obs": input_dict["obs"]["own_obs"]}, state, seq_lens)
+
+    def value_function(self):
+        value_out, _ = self.value_model({"obs": self._model_in[0]}, self._model_in[1], self._model_in[2])
+        return torch.reshape(value_out, [-1])
+
+def central_critic_observer(agent_obs, **kw):
+    new_obs = {
+        0: {
+            "own_obs": agent_obs[0],
+            "opponent_obs": agent_obs[1],
+            "opponent_action": np.zeros(ACTION_VEC_SIZE), # Filled in by FillInActions
+        },
+        1: {
+            "own_obs": agent_obs[1],
+            "opponent_obs": agent_obs[0],
+            "opponent_action": np.zeros(ACTION_VEC_SIZE), # Filled in by FillInActions
+        },
+    }
+    return new_obs
+
+class FillInActions(DefaultCallbacks):
+    def on_postprocess_trajectory(self, worker, episode, agent_id, policy_id, policies, postprocessed_batch, original_batches, **kwargs):
+        to_update = postprocessed_batch[SampleBatch.CUR_OBS]
+        other_id = 1 if agent_id == 0 else 0
+        action_encoder = ModelCatalog.get_preprocessor_for_space(
+                                                                 # Box(-np.inf, np.inf, (ACTION_VEC_SIZE,), np.float32) # Unbounded
+                                                                 Box(-1, 1, (ACTION_VEC_SIZE,), np.float32) # Bounded
+                                                                 )
+        _, opponent_batch = original_batches[other_id]
+        # opponent_actions = np.array([action_encoder.transform(a) for a in opponent_batch[SampleBatch.ACTIONS]]) # Unbounded
+        opponent_actions = np.array([action_encoder.transform(np.clip(a, -1, 1)) for a in opponent_batch[SampleBatch.ACTIONS]]) # Bounded
+        to_update[:, -ACTION_VEC_SIZE:] = opponent_actions
+
 ############################################################
 if __name__ == "__main__":
 
@@ -139,6 +207,9 @@ if __name__ == "__main__":
     ray.shutdown()
     ray.init(ignore_reinit_error=True, local_mode=ARGS.debug)
     from ray import tune
+
+    ModelCatalog.register_custom_model("cc_model", CustomTorchCentralizedCriticModel)
+
     #
     INIT_XYZS = np.vstack([np.array([0, -2]), \
                                         np.array([0, -3]), \
@@ -160,35 +231,38 @@ if __name__ == "__main__":
                                                                      )
     #### Register the environment ##############################
     register_env(ARGS.env, env_callable)
+    observer_space = Dict({
+        "own_obs": obs_space[0],
+        "opponent_obs": obs_space[0],
+        "opponent_action": act_space[0],
+    })
+    action_space = act_space[0]
 
-
-    config = {
+    config = ppo.DEFAULT_CONFIG.copy() # For the default config, see github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
+    config = { **config,
         "env": ARGS.env,
-        "gamma":0.99,  #0.999
         "num_workers": 0 + ARGS.workers,
-        "num_gpus": torch.cuda.device_count(),
+        "num_gpus": torch.cuda.device_count(),  # Use GPUs iff `RLLIB_NUM_GPUS` env var set to > 0
         "batch_mode": "complete_episodes",
-        "no_done_at_end": True,
+        "callbacks": FillInActions,
         "framework": "torch",
-        "lr": 3e-4, #0.003
-        "optimizer": "adam",
-       # "num_envs_per_worker": 4,
-        #"lambda" : 0.95,
-        "multiagent": {
-            # We only have one policy (calling it "shared").
-            # Class, obs/act-spaces, and config will be derived
-            # automatically.
-            "policies": {
-                "pol0": (None, obs_space[0], act_space[0], {"agent_id": 0, }),
-                "pol1": (None, obs_space[1], act_space[1], {"agent_id": 1, }),
-            },
-            "policy_mapping_fn": lambda x: "pol0" if x == 0 else "pol1",
-            # Always use "shared" policy.
-
-        }
+        "no_done_at_end": True,
     }
+
+    config["model"] = {
+        "custom_model": "cc_model",
+    }
+    config["multiagent"] = {
+        "policies": {
+            "pol0": (None, observer_space, action_space, {"agent_id": 0, }),
+            "pol1": (None, observer_space, action_space, {"agent_id": 1, }),
+        },
+        "policy_mapping_fn": lambda x: "pol0" if x == 0 else "pol1",  # # Function mapping agent ids to policy ids
+        "observation_fn": central_critic_observer,  # See rllib/evaluation/observation_function.py for more info
+    }
+
     stop = {
-        "timesteps_total": 500000,  # 100000 ~= 10'
+        "timesteps_total": 1000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
@@ -257,8 +331,8 @@ if __name__ == "__main__":
             #### Deploy the policies ###################################
             temp = {}
             temp[0] = policy0.compute_single_action(
-                np.hstack(obs[0]))  # Counterintuitive order, check params.json
-            temp[1] = policy1.compute_single_action(np.hstack(obs[1]))
+                np.hstack([action[1], obs[1], obs[0]]))  # Counterintuitive order, check params.json
+            temp[1] = policy1.compute_single_action(np.hstack([action[0], obs[0], obs[1]]))
             action = {0: temp[0][0], 1: temp[1][0]}
             obs, reward, done, info = temp_env.step(action)
             temp_env.render()
