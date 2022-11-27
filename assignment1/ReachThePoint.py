@@ -80,7 +80,7 @@ if __name__ == "__main__":
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
     parser.add_argument('--num_drones', default=2, type=int, help='Number of drones (default: 2)', metavar='')
-    parser.add_argument('--env', default='ReachThePointAviary', type=str, choices=['ReachThePointAviary'],
+    parser.add_argument('--env', default='ReachThePointAviary_sparse', type=str, choices=['ReachThePointAviary_sparse'],
                         help='Task (default: leaderfollower)', metavar='')
     parser.add_argument('--obs', default='kin', type=ObservationType, help='Observation space (default: kin)',
                         metavar='')
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     #### Constants, and errors #################################
     if ARGS.obs == ObservationType.KIN:
-        OWN_OBS_VEC_SIZE = 12
+        OWN_OBS_VEC_SIZE = 42
     elif ARGS.obs == ObservationType.RGB:
         print("[ERROR] ObservationType.RGB for multi-agent systems not yet implemented")
         exit(2)
@@ -139,24 +139,42 @@ if __name__ == "__main__":
     ray.shutdown()
     ray.init(ignore_reinit_error=True, local_mode=ARGS.debug)
     from ray import tune
+    #
+    INIT_XYZS = np.vstack([np.array([0, -2]), \
+                                        np.array([0, -3]), \
+                                        np.ones(2)]).transpose().reshape(2, 3)
+
+    # INIT_XYZS = np.vstack([np.array([9.2, -5]), \
+    #                        np.array([3.4508020977360783, 0]), \
+    #                        np.array([5.722600605763271, 1])]).transpose().reshape(2, 3)
+
+    #9.468482773404116, 3.4508020977360783, 5.722600605763271
 
     env_callable, obs_space, act_space, temp_env = build_env_by_name(env_class=from_env_name_to_class(ARGS.env),
                                                                      num_drones=ARGS.num_drones,
                                                                      aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
                                                                      obs=ARGS.obs,
                                                                      act=ARGS.act,
-                                                                     gui=ARGS.gui
+                                                                     gui=ARGS.gui,
+                                                                     initial_xyzs = INIT_XYZS
                                                                      )
     #### Register the environment ##############################
     register_env(ARGS.env, env_callable)
 
-    config = {
+    config = ppo.DEFAULT_CONFIG.copy() # For the default config, see github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
+
+    config = { #**config,
         "env": ARGS.env,
+        "gamma":0.999,  #0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
+        "no_done_at_end": True,
         "framework": "torch",
-        # "lr": 5e-3,
+        "lr": 3e-3, #0.003
+        "optimizer": "adam",
+       # "num_envs_per_worker": 4,
+        #"lambda" : 0.95,
         "multiagent": {
             # We only have one policy (calling it "shared").
             # Class, obs/act-spaces, and config will be derived
@@ -167,15 +185,18 @@ if __name__ == "__main__":
             },
             "policy_mapping_fn": lambda x: "pol0" if x == 0 else "pol1",
             # Always use "shared" policy.
+
         }
     }
+
     stop = {
-        "timesteps_total": 10000,  # 100000 ~= 10'
+        "timesteps_total": 1000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
 
     if not ARGS.exp:
+        #logId = p.startStateLogging(p.STATE_LOGGING_PROFILE_TIMINGS, "./logging/timings.json")
 
         results = tune.run(
             "PPO",
@@ -185,12 +206,12 @@ if __name__ == "__main__":
             progress_reporter=CLIReporter(max_progress_rows=10),
             # checkpoint_freq=50000,
             checkpoint_at_end=True,
-            local_dir=filename,
+            local_dir=filename
         )
 
         # check_learning_achieved(results, 1.0)
 
-        #### Save agent ############################################
+        #### Sa/results/save-ReachThePointAviary-2-cc-kin-pid-11.23.2022_14.34.23ve agent ############################################
         checkpoints = results.get_trial_checkpoints_paths(trial=results.get_best_trial('episode_reward_mean',
                                                                                        mode='max'
                                                                                        ),
@@ -233,7 +254,8 @@ if __name__ == "__main__":
             print("[ERROR] unknown ActionType")
             exit()
         start = time.time()
-        for i in range(6 * int(temp_env.SIM_FREQ / temp_env.AGGR_PHY_STEPS)):  # Up to 6''
+        duration = 200
+        for i in range(duration * int(temp_env.SIM_FREQ / temp_env.AGGR_PHY_STEPS)):  # Up to 6''
             #### Deploy the policies ###################################
             temp = {}
             temp[0] = policy0.compute_single_action(

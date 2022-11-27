@@ -6,8 +6,8 @@ from datetime import datetime
 import xml.etree.ElementTree as etxml
 import pkg_resources
 from PIL import Image
-# import pkgutil
-# egl = pkgutil.get_loader('eglRenderer')
+import pkgutil
+egl = pkgutil.get_loader('eglRenderer')
 import numpy as np
 import pybullet as p
 import pybullet_data
@@ -38,7 +38,7 @@ class BaseAviary(gym.Env):
                  user_debug_gui=True,
                  vision_attributes=False,
                  dynamics_attributes=False,
-                 output_folder='results'
+                 output_folder='results/test11/'
                  ):
         """Initialization of a generic aviary environment.
 
@@ -155,10 +155,11 @@ class BaseAviary(gym.Env):
             self.CLIENT = p.connect(p.GUI) # p.connect(p.GUI, options="--opengl2")
             for i in [p.COV_ENABLE_RGB_BUFFER_PREVIEW, p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW]:
                 p.configureDebugVisualizer(i, 0, physicsClientId=self.CLIENT)
+
             p.resetDebugVisualizerCamera(cameraDistance=3,
                                          cameraYaw=-30,
                                          cameraPitch=-30,
-                                         cameraTargetPosition=[0, 0, 0],
+                                         cameraTargetPosition=[0,0,0],
                                          physicsClientId=self.CLIENT
                                          )
             ret = p.getDebugVisualizerCamera(physicsClientId=self.CLIENT)
@@ -175,21 +176,31 @@ class BaseAviary(gym.Env):
             self.CLIENT = p.connect(p.DIRECT)
             #### Uncomment the following line to use EGL Render Plugin #
             #### Instead of TinyRender (CPU-based) in PYB's Direct mode
-            # if platform == "linux": p.setAdditionalSearchPath(pybullet_data.getDataPath()); plugin = p.loadPlugin(egl.get_filename(), "_eglRendererPlugin"); print("plugin=", plugin)
+            if platform == "linux": p.setAdditionalSearchPath(pybullet_data.getDataPath()); plugin = p.loadPlugin(egl.get_filename(), "_eglRendererPlugin"); print("plugin=", plugin)
             if self.RECORD:
                 #### Set the camera parameters to save frames in DIRECT mode
                 self.VID_WIDTH=int(640)
                 self.VID_HEIGHT=int(480)
                 self.FRAME_PER_SEC = 24
                 self.CAPTURE_FREQ = int(self.SIM_FREQ/self.FRAME_PER_SEC)
+                cameraTargetPosition = [0, 0, 1]
+
                 self.CAM_VIEW = p.computeViewMatrixFromYawPitchRoll(distance=3,
-                                                                    yaw=-30,
-                                                                    pitch=-30,
+                                                                    yaw=-90,
+                                                                    pitch=-20,
                                                                     roll=0,
-                                                                    cameraTargetPosition=[0, 0, 0],
+                                                                    cameraTargetPosition=cameraTargetPosition,
                                                                     upAxisIndex=2,
                                                                     physicsClientId=self.CLIENT
                                                                     )
+                # self.CAM_VIEW = p.computeViewMatrixFromYawPitchRoll(distance=3,
+                #                                                     yaw=-30,
+                #                                                     pitch=-30,
+                #                                                     roll=0,
+                #                                                     cameraTargetPosition=cameraTargetPosition,
+                #                                                     upAxisIndex=2,
+                #                                                     physicsClientId=self.CLIENT
+                #                                                     )
                 self.CAM_PRO = p.computeProjectionMatrixFOV(fov=60.0,
                                                             aspect=self.VID_WIDTH/self.VID_HEIGHT,
                                                             nearVal=0.1,
@@ -219,7 +230,6 @@ class BaseAviary(gym.Env):
         self._updateAndStoreKinematicInformation()
         #### Start video recording #################################
         self._startVideoRecording()
-    
     ################################################################################
 
     def reset(self):
@@ -243,10 +253,22 @@ class BaseAviary(gym.Env):
         return self._computeObs()
     
     ################################################################################
-
     def step(self,
              action
              ):
+
+        # if self.step_counter % 2 == 0:
+        #     cameraTargetPosition = self._getDroneStateVector(0)
+        # else:
+        cameraTargetPosition = self._getDroneStateVector(0)
+
+        cameraTargetPosition = cameraTargetPosition[0:3]
+        p.resetDebugVisualizerCamera(cameraDistance=0.4,
+                                     cameraYaw=-90,
+                                     cameraPitch=-20,
+                                     cameraTargetPosition=cameraTargetPosition,
+                                     physicsClientId=self.CLIENT
+                                     )
         """Advances the environment by one simulation step.
 
         Parameters
@@ -273,6 +295,14 @@ class BaseAviary(gym.Env):
         """
         #### Save PNG video frames if RECORD=True and GUI=False ####
         if self.RECORD and not self.GUI and self.step_counter%self.CAPTURE_FREQ == 0:
+            self.CAM_VIEW = p.computeViewMatrixFromYawPitchRoll(distance=0.5,
+                                                                yaw=-90,
+                                                                pitch=-20,
+                                                                roll=0,
+                                                                cameraTargetPosition=cameraTargetPosition,
+                                                                upAxisIndex=2,
+                                                                physicsClientId=self.CLIENT
+                                                                )
             [w, h, rgb, dep, seg] = p.getCameraImage(width=self.VID_WIDTH,
                                                      height=self.VID_HEIGHT,
                                                      shadow=1,
@@ -533,6 +563,7 @@ class BaseAviary(gym.Env):
         """
         state = np.hstack([self.pos[nth_drone, :], self.quat[nth_drone, :], self.rpy[nth_drone, :],
                            self.vel[nth_drone, :], self.ang_v[nth_drone, :], self.last_clipped_action[nth_drone, :]])
+        #print(f"vel {self.vel[nth_drone, :]}")
         return state.reshape(20,)
 
     ################################################################################
