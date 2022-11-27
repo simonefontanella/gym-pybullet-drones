@@ -80,7 +80,7 @@ if __name__ == "__main__":
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
     parser.add_argument('--num_drones', default=2, type=int, help='Number of drones (default: 2)', metavar='')
-    parser.add_argument('--env', default='ReachThePointAviary', type=str, choices=['ReachThePointAviary'],
+    parser.add_argument('--env', default='ReachThePointAviary_sparse', type=str, choices=['ReachThePointAviary_sparse'],
                         help='Task (default: leaderfollower)', metavar='')
     parser.add_argument('--obs', default='kin', type=ObservationType, help='Observation space (default: kin)',
                         metavar='')
@@ -161,16 +161,17 @@ if __name__ == "__main__":
     #### Register the environment ##############################
     register_env(ARGS.env, env_callable)
 
+    config = ppo.DEFAULT_CONFIG.copy() # For the default config, see github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
 
-    config = {
+    config = { #**config,
         "env": ARGS.env,
-        "gamma":0.99,  #0.999
+        "gamma":0.999,  #0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "no_done_at_end": True,
         "framework": "torch",
-        "lr": 3e-4, #0.003
+        "lr": 3e-3, #0.003
         "optimizer": "adam",
        # "num_envs_per_worker": 4,
         #"lambda" : 0.95,
@@ -187,8 +188,9 @@ if __name__ == "__main__":
 
         }
     }
+
     stop = {
-        "timesteps_total": 500000,  # 100000 ~= 10'
+        "timesteps_total": 1000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }

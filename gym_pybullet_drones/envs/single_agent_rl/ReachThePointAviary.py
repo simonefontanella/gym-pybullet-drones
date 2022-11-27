@@ -1,22 +1,18 @@
 import numpy as np
 
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
-from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
-from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMultiagentAviary
+from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType, BaseSingleAgentAviary
 
 WORLDS_MARGIN = [-20, 60, -10, 10, 0, 10]  # minX maxX minY maxY minZ maxZ
 
 
-# minima -20 -10 0
-# massima 60 0 10
-class ReachThePointAviary(BaseMultiagentAviary):
+class ReachThePointAviary(BaseSingleAgentAviary):
     """Multi-agent RL problem: leader-follower."""
 
     ################################################################################
 
     def __init__(self,
                  drone_model: DroneModel = DroneModel.CF2X,
-                 num_drones: int = 2,
                  neighbourhood_radius: float = np.inf,
                  initial_xyzs=None,
                  initial_rpys=None,
@@ -24,9 +20,9 @@ class ReachThePointAviary(BaseMultiagentAviary):
                  freq: int = 240,
                  aggregate_phy_steps: int = 1,
                  gui=False,
-                 record=False,
+                 record=True,
                  obs: ObservationType = ObservationType.KIN,
-                 act: ActionType = ActionType.RPM):
+                 act: ActionType = ActionType.PID):
         """Initialization of a multi-agent RL environment.
 
         Using the generic multi-agent RL superclass.
@@ -60,9 +56,13 @@ class ReachThePointAviary(BaseMultiagentAviary):
 
         """
         self.episode = 0
+        self.closest_sphere_distance = {}
+        self.prev_sphere_treshold = 0
+        self.prev_drones_pos = []
+
+        self.DRONE_RADIUS = .06
+
         super().__init__(drone_model=drone_model,
-                         num_drones=num_drones,
-                         neighbourhood_radius=neighbourhood_radius,
                          initial_xyzs=initial_xyzs,
                          initial_rpys=initial_rpys,
                          physics=physics,
@@ -73,15 +73,9 @@ class ReachThePointAviary(BaseMultiagentAviary):
                          obs=obs,
                          act=act
                          )
-        self.last_drones_dist = [1000000 for _ in range(self.NUM_DRONES)]
-        self.closest_sphere_distance = {}
-        self.prev_sphere_treshold = 0
-        self.prev_drones_pos = []
+        self.done_ep = {i: False for i in range(1)}
         self.prev_drones_pos.append(self.INIT_XYZS[0, :])
-        self.prev_drones_pos.append(self.INIT_XYZS[1, :])
-        self.done_ep = {i: False for i in range(self.NUM_DRONES)}
-        self.DRONE_RADIUS = .06
-        self.spheres = []
+
     ################################################################################
 
     def _addObstacles(self):
@@ -97,32 +91,32 @@ class ReachThePointAviary(BaseMultiagentAviary):
         import assignment1 as module_path
         from random import randrange
 
-        # n_env = 100
-        # difficulty = "/medium/"
-        # if self.episode % 10 == 0:
-        #     env_number = str(randrange(n_env))
-        #     # env_number = "0"
-        #     csv_file_path = os.path.dirname(
-        #         module_path.__file__) + "/environment_generator/generated_envs" + difficulty + "{0}/static_obstacles.csv".format(
-        #         "environment_" + env_number)
-        #
-        #     with open(csv_file_path, mode='r') as infile:
-        #         reader = csv.reader(infile)
-        #         # prefab_name,pos_x,pos_y,pos_z,radius
-        #         self.spheres = [[str(rows[0]), float(rows[1]), float(rows[2]), float(rows[3]), float(rows[4])] for rows
-        #                         in
-        #                         reader]
-        #
-        # for sphere in self.spheres:
-        #     temp = p.loadURDF(sphere[0],
-        #                       sphere[1:4:],
-        #                       p.getQuaternionFromEuler([0, 0, 0]),
-        #                       physicsClientId=self.CLIENT,
-        #                       useFixedBase=True,
-        #                       globalScaling=10 * sphere[4],
-        #                       #flags=p.URDF_ENABLE_CACHED_GRAPHICS_SHAPES
-        #                       )
-        #     p.changeVisualShape(temp, -1, rgbaColor=[0, 0, 1, 1])
+        n_env = 100
+        difficulty = "/medium/"
+        if self.episode % 10 == 0:
+            #env_number = str(randrange(n_env))
+            env_number = "0"
+            csv_file_path = os.path.dirname(
+                module_path.__file__) + "/environment_generator/generated_envs" + difficulty + "{0}/static_obstacles.csv".format(
+                "environment_" + env_number)
+
+            with open(csv_file_path, mode='r') as infile:
+                reader = csv.reader(infile)
+                # prefab_name,pos_x,pos_y,pos_z,radius
+                self.spheres = [[str(rows[0]), float(rows[1]), float(rows[2]), float(rows[3]), float(rows[4])] for rows
+                                in
+                                reader]
+
+        for sphere in self.spheres:
+            temp = p.loadURDF(sphere[0],
+                              sphere[1:4:],
+                              p.getQuaternionFromEuler([0, 0, 0]),
+                              physicsClientId=self.CLIENT,
+                              useFixedBase=True,
+                              globalScaling=10 * sphere[4],
+                              flags=p.URDF_ENABLE_CACHED_GRAPHICS_SHAPES
+                              )
+            p.changeVisualShape(temp, -1, rgbaColor=[0, 0, 1, 1])
 
     ################################################################################
 
@@ -135,33 +129,30 @@ class ReachThePointAviary(BaseMultiagentAviary):
             The reward value for each drone.
 
         """
-        rewards = {}
-        states = np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
-        for i in range(0, self.NUM_DRONES):
-            x_vel = states[i, 10]
-            rewardForward = self.rewardBaseOnForward(states[i, :3], self.prev_drones_pos[i][0], x_vel)  # states[i, 0], self.prev_drones_pos[i][0],
-            # states[i, 1], self.prev_drones_pos[i][1],
-            # states[i, 2], self.prev_drones_pos[i][2],
-            # x_vel
-            rewardSphere = self.rewardBaseOnSphereDistance(states[i, 0:3], i)
-            #rewardsBoundary = self.rewardBaseOnTouchBoundary(states[i, 0:3])
-            rewards[i] = rewardForward #+ rewardSphere + rewardsBoundary
-            self.prev_drones_pos[i] = states[i, 0:3]
-        return rewards
-
-    def rewardBaseOnForward(self, drone_pos, x_vel, prev_x):  # x, prev_x, y, prev_y, z, prev_z, x_vel
         reward = 0
-
-        # if drone_pos[0] > prev_x:
-        #      reward += 10 + (10 * x_vel)
-        # #if x >= 60 :
-        return -1 * np.linalg.norm(np.array([60, 0, 1]) - drone_pos) ** 2
-
-        # if y > 8 or y < -8:
-        #     reward -= 0.05
-        # if z <= 2:
-        #     reward -= 0.05
+        state = self._getDroneStateVector(0)
+        rewardSphere = self.rewardBaseOnSphereDistance(state[0:3], 0)
+        rewardsBoundary = self.rewardBaseOnTouchBoundary(state[0:3])
+        if state[0] >= 60:
+            reward = 100
+        else:
+            if rewardSphere != 0 or rewardsBoundary != 0:
+                reward = rewardSphere
+            else:
+                reward = self.rewardBaseOnForward(state[:3], self.prev_drones_pos[0], state[10])
+        self.prev_drones_pos[0] = state[0:3]
+       # print(reward)
         return reward
+        #FRA SE LEGGI L 'EPISODE REARD E' RIPORTATO SOLO QUANDO E' FINITO L'EPISODIO, LASCIA FINIRE IL TRAINING, PER VELOCIZZARE HO TOLTO LE STAMPE
+    def rewardBaseOnForward(self, drone_pos, prev_drone_pos, vel_x):  # x, prev_x, y, prev_y, z, prev_z, x_vel
+        if drone_pos[0] > prev_drone_pos[0]:
+            return 10 * vel_x
+        return 0
+        # current_distance = np.linalg.norm(np.array([60, drone_pos[1], drone_pos[2]]) - drone_pos)
+        # prev_distance = np.linalg.norm(np.array([60, prev_drone_pos[1], prev_drone_pos[2]]) - prev_drone_pos)
+        # dist= current_distance - prev_distance
+        # print(dist)
+        # return dist
 
     # reward
     # x -0.02
@@ -171,7 +162,7 @@ class ReachThePointAviary(BaseMultiagentAviary):
     # 0.009
 
     def rewardBaseOnTouchBoundary(self, drone_xyz):
-        return -10 if self.hit_world(drone_xyz) else 0
+        return -100 if self.hit_world(drone_xyz) else 0
 
     def rewardBaseOnSphereDistance(self, drone_xyz, drone_index):
         self.closest_sphere_distance[drone_index] = self.getClosestSpheres(drone_xyz)
@@ -182,30 +173,10 @@ class ReachThePointAviary(BaseMultiagentAviary):
         for sphere in self.closest_sphere_distance[drone_index]:
             radius = sphere['radius']
             treshold = sphere['dist'] - radius - self.DRONE_RADIUS
-            # questo in caso il drone salga tøroppo in alto
-            # if sphere['z-dist'] < 0 or (sphere['y-dist'] < 0):
-            # reward*=sphere['z-dist']
 
-            # if 3 > treshold > 2:
-            #    reward -= 0.003
-            # if 2 > treshold > 1:
-            #    reward -= 0.006
-            # if 0.5 > treshold < 0.3:
-            #     reward -= 0.003
-            # if 0.3 > treshold < 0.2:
-            #     reward -= 0.005
-            # if 0.2 > treshold < 0.1:
-            #     reward -= 0.007
-            # if treshold < 0.5:
-            #    reward -= 0.05 + (0.05 * 1-treshold)
-            # if treshold < 0.01:
-            #   reward -= 0.05 + (0.05 * 1-treshold)
             if treshold <= 0.01:
-                reward -= 10
-
-        #  if (self.prev_sphere_treshold + 0.1) <= treshold:
-        #      reward += 0.005
-        # self.prev_sphere_treshold=treshold
+                reward -= 100
+                break
 
         return reward
 
@@ -219,11 +190,8 @@ class ReachThePointAviary(BaseMultiagentAviary):
 
     def reset(self):
         self.episode += 1
-        # resetMethod = super().reset()
         self.prev_drones_pos = []
         self.prev_drones_pos.append(self.INIT_XYZS[0, :])
-        self.prev_drones_pos.append(self.INIT_XYZS[1, :])
-        self.done_ep = {i: False for i in range(self.NUM_DRONES)}
         return super().reset()
 
     def getClosestSpheres(self, drone_pos):
@@ -275,21 +243,17 @@ class ReachThePointAviary(BaseMultiagentAviary):
             one additional boolean value for key "__all__".
 
         """
-        states = np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
+        state = self._getDroneStateVector(0)
 
-        for i in range(self.NUM_DRONES):
-            if self.hit_world(states[i, :3]):
-                self.done_ep[i] = True
-                continue
-            if self.is_drone_hit_spheres(i):
-                self.done_ep[i] = True
-                continue
-            if not self.done_ep[i]:
-                self.done_ep[i] = True if self.step_counter / self.SIM_FREQ > (self.EPISODE_LEN_SEC + 30) else False
+        if self.hit_world(state[:3]):
+            return True
+        if self.is_drone_hit_spheres(0):
+            return True
 
-        self.done_ep["__all__"] = all([self.done_ep.get(k) for k in range(self.NUM_DRONES)])
-        return self.done_ep
-
+        if self.step_counter / self.SIM_FREQ > (self.EPISODE_LEN_SEC + 60):
+            return True
+        else:
+            return False
     ################################################################################
 
     def is_drone_hit_spheres(self, drone_index):
@@ -309,52 +273,52 @@ class ReachThePointAviary(BaseMultiagentAviary):
             Dictionary of empty dictionaries.
 
         """
-        return {i: {} for i in range(self.NUM_DRONES)}
+        return {"answer": 42}
 
     ################################################################################
 
-    # def _observationSpace(self):
-    #     # aggiungere 4 numeri per la dimensione delle sfere x 10 volte che sono le sfere
-    #     from gym import spaces
-    #     #             x  y  z r   sphere
-    #     sphere_low = [0, 0, 0] * 10
-    #     sphere_high = [1, 1, 1] * 10
-    #     low = [-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1] + sphere_low
-    #     high = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] + sphere_high
-    #
-    #     return spaces.Dict({i: spaces.Box(low=np.array(low),
-    #                                       high=np.array(high),
-    #                                       dtype=np.float32
-    #                                       ) for i in range(self.NUM_DRONES)})
-    #
-    # def _computeObs(self):
-    #     """Returns the current observation of the environment.
-    #
-    #     Returns
-    #     -------
-    #     dict[int, ndarray]
-    #         A Dict with NUM_DRONES entries indexed by Id in integer format,
-    #         each a Box() os shape (H,W,4) or (12,) depending on the observation type.
-    #
-    #     """
-    #     ############################################################
-    #     #### OBS OF SIZE 20 (WITH QUATERNION AND RPMS)
-    #     # return {   i   : self._clipAndNormalizeState(self._getDroneStateVector(i)) for i in range(self.NUM_DRONES) }
-    #     ############################################################
-    #     #### OBS SPACE OF SIZE 52
-    #     obs_52 = np.zeros((self.NUM_DRONES, 42))
-    #     for i in range(self.NUM_DRONES):
-    #         drone_pos = self._getDroneStateVector(i)
-    #         obs = self._clipAndNormalizeState(drone_pos)
-    #         close_sphere = self.getClosestSpheres(drone_pos[0:3])
-    #         normalize_sphere = self.clipAndNormalizeSphere(close_sphere)
-    #         obs_52[i, :] = np.hstack([obs[0:3], obs[7:10], obs[10:13], obs[13:16], np.array(normalize_sphere)]).reshape(42, )
-    #     return {i: obs_52[i, :] for i in range(self.NUM_DRONES)}
+    def _observationSpace(self):
+        # aggiungere 4 numeri per la dimensione delle sfere x 10 volte che sono le sfere
+        from gym import spaces
+        #             x  y  z r   sphere
+        sphere_low = [0, 0, 0] * 10
+        sphere_high = [1, 1, 1] * 10
+        low = [-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1] + sphere_low
+        high = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] + sphere_high
+
+        return spaces.Box(low=np.array(low),
+                                          high=np.array(high),
+                                          dtype=np.float32
+                                          )
+
+    def _computeObs(self):
+        """Returns the current observation of the environment.
+
+        Returns
+        -------
+        dict[int, ndarray]
+            A Dict with NUM_DRONES entries indexed by Id in integer format,
+            each a Box() os shape (H,W,4) or (12,) depending on the observation type.
+
+        """
+        ############################################################
+        #### OBS OF SIZE 20 (WITH QUATERNION AND RPMS)
+        # return {   i   : self._clipAndNormalizeState(self._getDroneStateVector(i)) for i in range(self.NUM_DRONES) }
+        ############################################################
+        #### OBS SPACE OF SIZE 52
+        obs_52 = np.zeros((1, 42))
+
+        drone_pos = self._getDroneStateVector(0)
+        obs = self._clipAndNormalizeState(drone_pos)
+        close_sphere = self.getClosestSpheres(drone_pos[0:3])
+        normalize_sphere = self.clipAndNormalizeSphere(close_sphere)
+        obs_52 = np.hstack([obs[0:3], obs[7:10], obs[10:13], obs[13:16], np.array(normalize_sphere)]).reshape(42, )
+        return obs_52.astype('float32')
     #     ############################################################
 
     def clipAndNormalizeSphere(self, spheres):
         MIN_X = 0
-        MAX_X = 80 - 3 - self.DRONE_RADIUS
+        MAX_X = 65 - 3 - self.DRONE_RADIUS
         MIN_Y = 0
         MAX_Y = 20 - 3 - self.DRONE_RADIUS
         MIN_Z = 0
@@ -373,68 +337,6 @@ class ReachThePointAviary(BaseMultiagentAviary):
 
             norm_and_clipped.extend([normalized_x, normalized_y, normalized_z])
         return norm_and_clipped
-
-        # x_dists = np.array([s['x_dist'] for s in spheres]).reshape(-1, 1)
-        # y_dists = np.array([s['y_dist'] for s in spheres]).reshape(-1, 1)
-        # z_dists = np.array([s['z_dist'] for s in spheres]).reshape(-1, 1)
-        # d_dists = np.array([s['dist'] for s in spheres]).reshape(-1, 1)
-        #
-        # from sklearn.preprocessing import MinMaxScaler
-        # scaler = MinMaxScaler()
-        # normalized_x = scaler.fit_transform(x_dists)
-        # normalized_z = scaler.fit_transform(z_dists)
-        #
-        # normalized_y = scaler.fit_transform(y_dists)
-        #
-        # normalized_d = scaler.fit_transform(d_dists)
-        #
-        # con = np.ravel(np.concatenate((normalized_x, normalized_y, normalized_z, normalized_d)))
-        # return con
-        # x_dists = [s['x_dist'] for s in spheres]
-        # print(x_dists)
-        # normalized_x = x_dists / np.linalg.norm(x_dists)
-        # L = (L - np.min(L)) / (np.max(L) - np.min(L))
-        #
-        # y_dists = [s['y_dist'] for s in spheres]
-        # normalized_y = y_dists / np.linalg.norm(y_dists)
-        #
-        # z_dists = [s['z_dist'] for s in spheres]
-        # normalized_z = z_dists / np.linalg.norm(z_dists)
-        #
-        # d_dists = [s['dist'] for s in spheres]
-        # normalized_d = d_dists / np.linalg.norm(d_dists)
-        #
-        # con = np.stack((normalized_x, normalized_y,normalized_z,normalized_d), axis=1)
-        # print(con)
-        # exit()
-        # return [normalized_x, normalized_y, normalized_z, normalized_d]
-
-        # for s in spheres:
-        #     clipped_dist_x = np.clip(s["x_dist"], MIN_X, MAX_X)
-        #     # print(f"s[y] {y}")
-        #     clipped_dist_y = np.clip(s["y_dist"], MIN_Y, MAX_Y)
-        #     # print(f"clipped_pos_y {clipped_pos_y}")
-        #     clipped_pos_z = np.clip(s["z_dist"], MIN_Z, MAX_Z)
-        #     clipped_r = np.clip(s["radius"], MIN_R, MAX_R)
-        #     normalized_x = clipped_pos_x / MAX_X
-        #     normalized_y = clipped_pos_y / MAX_Y
-        #     normalized_z = clipped_pos_z / MAX_Z
-        #     normalized_r = clipped_r / MAX_R
-        #     # print(f"normalized_x {normalized_x}")
-        #     # print(f"normalized_y {normalized_y}")
-        #     # print(f"normalized_z {normalized_z}")
-        #     # print(f"RAGGIO {normalized_r}")
-        #     # res_norm=np.array(np.hstack([normalized_x,
-        #     #                        normalized_y,
-        #     #                   normalized_z,
-        #     #                       normalized_r
-        #     #                       ]).reshape(4, ))
-        #     # if len(norm_and_clipped) == 0:
-        #     #     norm_and_clipped = res_norm
-        #     # else:
-        #     #     norm_and_clipped+=res_norm
-        #     norm_and_clipped.extend([normalized_x, normalized_y, normalized_z, normalized_r])
-        # return norm_and_clipped
 
     def _clipAndNormalizeState(self,
                                state
