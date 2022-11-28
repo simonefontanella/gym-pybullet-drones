@@ -251,6 +251,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             if self.is_drone_hit_spheres(i):
                 self.done_ep[i] = True
                 continue
+            if not self.done_ep[i]:
+                self.done_ep[i] = True if self.step_counter / self.SIM_FREQ > (self.EPISODE_LEN_SEC + 150) else False
         self.done_ep["__all__"] = all([self.done_ep.get(k) for k in range(self.NUM_DRONES)])
         return self.done_ep
 
