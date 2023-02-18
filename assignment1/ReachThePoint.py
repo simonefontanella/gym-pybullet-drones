@@ -28,51 +28,24 @@ ObservationType(Enum):
     RGB = "rgb"     # RGB camera capture in each drone's POV
 
 """
-import os
-import time
 import argparse
+import os
+import sys
+import time
 from datetime import datetime
-from sys import platform
-import subprocess
-import pdb
-import math
-import numpy as np
-import pybullet as p
-import pickle
-import matplotlib.pyplot as plt
-import gym
-from gym import error, spaces, utils
-from gym.utils import seeding
-from gym.spaces import Box, Dict
-import torch
-import torch.nn as nn
-from ray.rllib.models.torch.fcnet import FullyConnectedNetwork
-import ray
-from ray import tune
-from ray.tune.logger import DEFAULT_LOGGERS
-from ray.tune import register_env, CLIReporter
-from ray.rllib.agents import ppo
-from ray.rllib.agents.ppo import PPOTrainer, PPOTFPolicy
-from ray.rllib.examples.policy.random_policy import RandomPolicy
-from ray.rllib.utils.test_utils import check_learning_achieved
-from ray.rllib.agents.callbacks import DefaultCallbacks
-from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
-from ray.rllib.models import ModelCatalog
-from ray.rllib.policy.sample_batch import SampleBatch
-from ray.rllib.env.multi_agent_env import ENV_STATE
 
-from utils import build_env_by_name, from_env_name_to_class
+sys.path.append('../')
+import numpy as np
+import ray
+import torch
+from ray.rllib.agents import ppo
+from ray.tune import register_env, CLIReporter
+from ray.tune.logger import pretty_print
 import shared_constants
-from gym_pybullet_drones.utils.enums import DroneModel, Physics
-from gym_pybullet_drones.envs.multi_agent_rl.MeetupAviary import MeetupAviary
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
 from gym_pybullet_drones.utils.Logger import Logger
-from env_builder import EnvBuilder
 from gym_pybullet_drones.utils.utils import str2bool, sync
-from ray.rllib.examples.models.shared_weights_model import (
-
-    TorchSharedWeightsModel,
-)
+from utils import build_env_by_name, from_env_name_to_class
 
 ############################################################
 if __name__ == "__main__":
@@ -84,15 +57,18 @@ if __name__ == "__main__":
                         help='Task (default: leaderfollower)', metavar='')
     parser.add_argument('--obs', default='kin', type=ObservationType, help='Observation space (default: kin)',
                         metavar='')
-    parser.add_argument('--act', default='pid', type=ActionType, help='Action space (default: one_d_rpm)',
+    parser.add_argument('--act', default='vel', type=ActionType, help='Action space (default: one_d_rpm)',
                         metavar='')
     parser.add_argument('--algo', default='cc', type=str, choices=['cc'], help='MARL approach (default: cc)',
                         metavar='')
-    parser.add_argument('--workers', default=1, type=int, help='Number of RLlib workers (default: 0)', metavar='')
+    parser.add_argument('--workers', default=0, type=int, help='Number of RLlib workers (default: 0)', metavar='')
     parser.add_argument('--debug', default=False, type=str2bool,
                         help='Run in one Thread if true, for debugger to work properly', metavar='')
     parser.add_argument('--gui', default=False, type=str2bool,
                         help='Enable gui rendering', metavar='')
+    parser.add_argument('--train', default=True, type=str2bool,
+                        help='If enabled is in training mode, if not is in tuning mode, need exp to be not defined',
+                        metavar='')
     parser.add_argument('--exp', type=str,
                         help='The experiment folder written as ./results/save-<env>-<num_drones>-<algo>-<obs>-<act>-<time_date>',
                         metavar='')
@@ -139,42 +115,44 @@ if __name__ == "__main__":
     ray.shutdown()
     ray.init(ignore_reinit_error=True, local_mode=ARGS.debug)
     from ray import tune
-    #
-    INIT_XYZS = np.vstack([np.array([0, -2]), \
-                                        np.array([0, -3]), \
-                                        np.ones(2)]).transpose().reshape(2, 3)
 
+    # shperes can spawn from 0 THIS POSITION ARE RANDOMIZED FROM RESET METHOD
+    # IT IS USELESS TO CHANGE THIS
+    INIT_XYZS = np.vstack([np.array([0, 0]), \
+                           np.array([0, 0]), \
+                           np.ones(2)]).transpose().reshape(2, 3)
     # INIT_XYZS = np.vstack([np.array([9.2, -5]), \
     #                        np.array([3.4508020977360783, 0]), \
     #                        np.array([5.722600605763271, 1])]).transpose().reshape(2, 3)
 
-    #9.468482773404116, 3.4508020977360783, 5.722600605763271
+    # 9.468482773404116, 3.4508020977360783, 5.722600605763271
 
     env_callable, obs_space, act_space, temp_env = build_env_by_name(env_class=from_env_name_to_class(ARGS.env),
+                                                                     exp=ARGS.exp,
                                                                      num_drones=ARGS.num_drones,
                                                                      aggregate_phy_steps=shared_constants.AGGR_PHY_STEPS,
                                                                      obs=ARGS.obs,
                                                                      act=ARGS.act,
                                                                      gui=ARGS.gui,
-                                                                     initial_xyzs = INIT_XYZS
+                                                                     initial_xyzs=INIT_XYZS
                                                                      )
     #### Register the environment ##############################
     register_env(ARGS.env, env_callable)
 
-    config = ppo.DEFAULT_CONFIG.copy() # For the default config, see github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
+    config = ppo.DEFAULT_CONFIG.copy()  # For the default config, see github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
 
-    config = { #**config,
+    config = {  # **config,
         "env": ARGS.env,
-        "gamma":0.999,  #0.999
+        "gamma": 0.9999,  # 0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "no_done_at_end": True,
         "framework": "torch",
-        "lr": 3e-3, #0.003
+        "lr": 4e-3,  # 0.003
         "optimizer": "adam",
-       # "num_envs_per_worker": 4,
-        #"lambda" : 0.95,
+        # "num_envs_per_worker": 4,
+        # "lambda" : 0.95,
         "multiagent": {
             # We only have one policy (calling it "shared").
             # Class, obs/act-spaces, and config will be derived
@@ -190,25 +168,37 @@ if __name__ == "__main__":
     }
 
     stop = {
-        "timesteps_total": 1000000,  # 100000 ~= 10'
+        "timesteps_total": 1000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
 
     if not ARGS.exp:
-        #logId = p.startStateLogging(p.STATE_LOGGING_PROFILE_TIMINGS, "./logging/timings.json")
+        # logId = p.startStateLogging(p.STATE_LOGGING_PROFILE_TIMINGS, "./logging/timings.json")
 
-        results = tune.run(
-            "PPO",
-            stop=stop,
-            config=config,
-            verbose=True,
-            progress_reporter=CLIReporter(max_progress_rows=10),
-            # checkpoint_freq=50000,
-            checkpoint_at_end=True,
-            local_dir=filename
-        )
+        if ARGS.train:
 
+            agent = ppo.PPOTrainer(config=config)
+            for i in range(10):
+                result = agent.train()
+                print(pretty_print(result))
+
+                if i % 5 == 0:
+                    checkpoint_dir = agent.save()
+                    print(f"Checkpoint saved in directory {checkpoint_dir}")
+
+        else:
+            results = tune.run(
+                "PPO",
+                stop=stop,
+                config=config,
+                verbose=True,
+                progress_reporter=CLIReporter(metric_columns=["loss", "accuracy", "training_iteration"],
+                                              max_progress_rows=10),
+                # checkpoint_freq=50000,
+                checkpoint_at_end=True,
+                local_dir=filename,
+            )
         # check_learning_achieved(results, 1.0)
 
         #### Sa/results/save-ReachThePointAviary-2-cc-kin-pid-11.23.2022_14.34.23ve agent ############################################

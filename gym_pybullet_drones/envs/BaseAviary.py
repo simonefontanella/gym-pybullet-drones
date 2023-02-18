@@ -212,7 +212,7 @@ class BaseAviary(gym.Env):
             self.INIT_XYZS = np.vstack([np.array([x * 4 * self.L for x in range(self.NUM_DRONES)]), \
                                         np.array([y * 4 * self.L for y in range(self.NUM_DRONES)]), \
                                         np.ones(self.NUM_DRONES) * (
-                                                    self.COLLISION_H / 2 - self.COLLISION_Z_OFFSET + .1)]).transpose().reshape(
+                                                self.COLLISION_H / 2 - self.COLLISION_Z_OFFSET + .1)]).transpose().reshape(
                 self.NUM_DRONES, 3)
         elif np.array(initial_xyzs).shape == (self.NUM_DRONES, 3):
             self.INIT_XYZS = initial_xyzs
@@ -413,7 +413,7 @@ class BaseAviary(gym.Env):
               "——— wall-clock time {:.1f}s,".format(time.time() - self.RESET_TIME),
               "simulation time {:.1f}s@{:d}Hz ({:.2f}x)".format(self.step_counter * self.TIMESTEP, self.SIM_FREQ,
                                                                 (self.step_counter * self.TIMESTEP) / (
-                                                                            time.time() - self.RESET_TIME)))
+                                                                        time.time() - self.RESET_TIME)))
         for i in range(self.NUM_DRONES):
             print("[INFO] BaseAviary.render() ——— drone {:d}".format(i),
                   "——— x {:+06.2f}, y {:+06.2f}, z {:+06.2f}".format(self.pos[i, 0], self.pos[i, 1], self.pos[i, 2]),
@@ -913,7 +913,7 @@ class BaseAviary(gym.Env):
         if np.any(np.abs(action) > 1):
             print("\n[ERROR] it", self.step_counter, "in BaseAviary._normalizedActionToRPM(), out-of-bound action")
         return np.where(action <= 0, (action + 1) * self.HOVER_RPM, self.HOVER_RPM + (
-                    self.MAX_RPM - self.HOVER_RPM) * action)  # Non-linear mapping: -1 -> 0, 0 -> HOVER_RPM, 1 -> MAX_RPM`
+                self.MAX_RPM - self.HOVER_RPM) * action)  # Non-linear mapping: -1 -> 0, 0 -> HOVER_RPM, 1 -> MAX_RPM`
 
     ################################################################################
 
@@ -935,11 +935,11 @@ class BaseAviary(gym.Env):
         if isinstance(action, collections.abc.Mapping):
             for k, v in action.items():
                 res_v = np.resize(v, (
-                1, 4))  # Resize, possibly with repetition, to cope with different action spaces in RL subclasses
+                    1, 4))  # Resize, possibly with repetition, to cope with different action spaces in RL subclasses
                 self.last_action[int(k), :] = res_v
         else:
             res_action = np.resize(action, (
-            1, 4))  # Resize, possibly with repetition, to cope with different action spaces in RL subclasses
+                1, 4))  # Resize, possibly with repetition, to cope with different action spaces in RL subclasses
             self.last_action = np.reshape(res_action, (len(self._agent_ids), 4))
 
     ################################################################################

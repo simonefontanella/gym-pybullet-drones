@@ -23,6 +23,8 @@ else:
 random.seed(SEED)
 np.random.seed(SEED)
 
+print ("SEED: ", SEED)
+print ("DENSITY_MULTIPLIER: ", DENSITY_MULTIPLIER)
 
 class Trajectory:
     def __init__(self, config, traj_type="000000"):
@@ -40,7 +42,7 @@ class Trajectory:
 
         self.name = None
         self.t = np.zeros((self.N, 1), dtype=float)
-        self.t = np.arange(0, max2_time, self.dt)
+        self.t = np.arange(0, max_time, self.dt)
 
         self.config = config
         self.generateTrajectory(traj_type)

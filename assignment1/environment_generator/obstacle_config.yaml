@@ -16,7 +16,7 @@ exclusion_zone: [ [ -3, 3, -3, 3, 0, 5 ], [ 57, 61, -3, 3, 0, 5 ] ]
 
 density: 1 # objects per square meter
 
-scale: [ 0.10, 3 ]
+scale: [ 0.30, 1.25 ]
 
 box_static_region1:
   prefab_name: "sphere_small.urdf"
@@ -38,7 +38,7 @@ box_constvel_region2:
   #original   density: 0.11
   density: 0.11
   pos_bb: [ 20, 60, -10, 10,  0,  10 ]
-  scale: [ 0.5, 2 ]
+  scale: [ 0.2, 1 ]
 
 box_static_region3:
   prefab_name: "sphere_small.urdf"
@@ -55,4 +55,4 @@ box_randaccel_region3:
   pos_bb: [ 40, 60, -10, 10,  0,  10 ]
   vel_bb: [ -1,   1,  -1,  1, -1,  1 ]
   acc_bb: [ -5,   5,  -5,  5, -5,  5 ]
-  scale: [ 0.5, 1.5 ]
+  scale: [ 0.2, 0.75 ]
