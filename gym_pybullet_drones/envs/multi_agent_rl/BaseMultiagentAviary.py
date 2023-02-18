@@ -107,8 +107,9 @@ class BaseMultiagentAviary(BaseAviary, MultiAgentEnv):
 
         #### Set a limit on the maximum target speed ###############
         # Doubled the max speed, possible breaking changes
+        self.MAX_SPEED_MULTIPLIER = 1
         if act == ActionType.VEL:
-            self.SPEED_LIMIT = 0.03 * 1 * self.MAX_SPEED_KMH * (1000 / 3600)
+            self.SPEED_LIMIT = 0.03 * self.MAX_SPEED_MULTIPLIER * self.MAX_SPEED_KMH * (1000 / 3600)
 
         MultiAgentEnv.__init__(self)
 

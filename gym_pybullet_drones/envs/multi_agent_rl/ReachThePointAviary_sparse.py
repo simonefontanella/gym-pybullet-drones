@@ -88,7 +88,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                          obs=obs,
                          act=act
                          )
-        self.EPISODE_LEN_SEC = 35
+        self.EPISODE_LEN_SEC = 25
         self.last_drones_dist = [1000000 for _ in self.get_agent_ids()]
         self.done_ep = {i: False for i in self.get_agent_ids()}
         self.prev_drones_pos.append(self.INIT_XYZS[0, :])
@@ -178,7 +178,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                     rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
                                                           self.prev_drones_pos[i],
                                                           self.actual_step_drones_states[i, 10])
-                    print(rewards[i])
             self.prev_drones_pos[i] = self.actual_step_drones_states[i, 0:3]
         return rewards
 
@@ -188,6 +187,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         """
         # return -0.5 * np.linalg.norm(np.array([WORLDS_MARGIN[1], drone_pos[1], drone_pos[2]]) - drone_pos)
         # Speed max is self.SPEED_LIMIT, see BaseMultiagentAviary, use min max scaling
+
         return ((vel_x - 0) / (self.SPEED_LIMIT - 0)) if (prev_drone_pos[0] < drone_pos[0] and vel_x > 0) else 0
 
     ################################################################################
@@ -421,8 +421,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             (20,)-shaped array of floats containing the normalized state of a single drone.
 
         """
-        MAX_LIN_VEL_XY = 3
-        MAX_LIN_VEL_Z = 1
+        # Check BaseMultiagentAviary to increase the maximum speed
+        MAX_LIN_VEL_XY = self.SPEED_LIMIT
+        MAX_LIN_VEL_Z = self.SPEED_LIMIT
         MIN_X = WORLDS_MARGIN[0]
         MAX_X = WORLDS_MARGIN[1]
         MIN_Y = WORLDS_MARGIN[2]
