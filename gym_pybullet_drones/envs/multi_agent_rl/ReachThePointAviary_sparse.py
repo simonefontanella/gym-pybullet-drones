@@ -75,7 +75,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.closest_sphere_distance = {}
         self.prev_sphere_treshold = 0
         self.prev_drones_pos = []
-        self.EPISODE_LEN_SEC = 35
         super().__init__(drone_model=drone_model,
                          num_drones=num_drones,
                          neighbourhood_radius=neighbourhood_radius,
@@ -89,6 +88,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                          obs=obs,
                          act=act
                          )
+        self.EPISODE_LEN_SEC = 35
         self.last_drones_dist = [1000000 for _ in self.get_agent_ids()]
         self.done_ep = {i: False for i in self.get_agent_ids()}
         self.prev_drones_pos.append(self.INIT_XYZS[0, :])
