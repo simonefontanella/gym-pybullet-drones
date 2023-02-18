@@ -158,7 +158,12 @@ class BaseMultiagentAviary(BaseAviary, MultiAgentEnv):
 
         """
         if self.ACT_TYPE in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
-            size = 4
+            act_lower_bound = np.array([-1, -1, -1, 0])
+            act_upper_bound = np.array([1, 1, 1, 1])
+            return spaces.Dict({i: spaces.Box(low=act_lower_bound,
+                                              high=act_upper_bound,
+                                              dtype=np.float64
+                                              ) for i in range(self.NUM_DRONES)})
         elif self.ACT_TYPE == ActionType.PID:
             size = 3
         elif self.ACT_TYPE in [ActionType.ONE_D_RPM, ActionType.ONE_D_DYN, ActionType.ONE_D_PID]:
