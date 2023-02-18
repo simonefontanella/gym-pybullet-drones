@@ -169,7 +169,7 @@ if __name__ == "__main__":
     }
 
     stop = {
-        "timesteps_total": 1000,  # 100000 ~= 10'
+        "timesteps_total": 2000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
@@ -200,18 +200,18 @@ if __name__ == "__main__":
                 checkpoint_at_end=True,
                 local_dir=filename,
             )
-        # check_learning_achieved(results, 1.0)
+            # check_learning_achieved(results, 1.0)
 
-        #### Sa/results/save-ReachThePointAviary-2-cc-kin-pid-11.23.2022_14.34.23ve agent ############################################
-        checkpoints = results.get_trial_checkpoints_paths(trial=results.get_best_trial('episode_reward_mean',
-                                                                                       mode='max'
-                                                                                       ),
-                                                          metric='episode_reward_mean'
-                                                          )
-        with open(filename + '/checkpoint.txt', 'w+') as f:
-            f.write(checkpoints[0][0])
+            #### Sa/results/save-ReachThePointAviary-2-cc-kin-pid-11.23.2022_14.34.23ve agent ############################################
+            checkpoints = results.get_trial_checkpoints_paths(trial=results.get_best_trial('episode_reward_mean',
+                                                                                           mode='max'
+                                                                                           ),
+                                                              metric='episode_reward_mean'
+                                                              )
+            with open(filename + '/checkpoint.txt', 'w+') as f:
+                f.write(checkpoints[0][0])
 
-        print(checkpoints)
+            print(checkpoints)
 
     else:
 
@@ -269,4 +269,5 @@ if __name__ == "__main__":
         logger.plot()
 
     #### Shut down Ray #########################################
+    print("-------------------Ended------------------")
     ray.shutdown()
