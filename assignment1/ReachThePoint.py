@@ -67,7 +67,7 @@ if __name__ == "__main__":
                         help='Run in one Thread if true, for debugger to work properly', metavar='')
     parser.add_argument('--gui', default=False, type=str2bool,
                         help='Enable gui rendering', metavar='')
-    parser.add_argument('--train', default=True, type=str2bool,
+    parser.add_argument('--train', default=False, type=str2bool,
                         help='If enabled is in training mode, if not is in tuning mode, need exp to be not defined',
                         metavar='')
     parser.add_argument('--exp', type=str,
@@ -180,7 +180,7 @@ if __name__ == "__main__":
         if ARGS.train:
 
             agent = ppo.PPOTrainer(config=config)
-            for i in range(10):
+            for i in range(10000):
                 result = agent.train()
                 print(pretty_print(result))
 

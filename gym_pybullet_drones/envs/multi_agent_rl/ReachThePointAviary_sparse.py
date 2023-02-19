@@ -1,4 +1,7 @@
+import os
+
 import numpy as np
+import pybullet as p
 
 from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMultiagentAviary
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
@@ -19,6 +22,8 @@ WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] - DRON
 # threasold used to punish drone when it get near to spheres
 SPHERES_THRESHOLD = 0.5
 BOUNDARIES_THRESHOLD = 0.13
+# working dir need to be constant
+WORKING_DIR = os.getcwd()
 
 
 class ReachThePointAviary_sparse(BaseMultiagentAviary):
@@ -105,20 +110,19 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         Overrides BaseAviary's method.
 
         """
-        import pybullet as p
         import csv
-        import os
         import assignment1 as module_path
         from random import randrange
+        p.setAdditionalSearchPath(
+            WORKING_DIR + "/shapes/")  # used by loadURDF
         # Override of small_sphere.urdf for changing starting radius to match collision
-        p.setAdditionalSearchPath(os.getcwd() + "/shapes/")  # used by loadURDF
         # disable shadow for performance
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 0)
         n_env = 100
         difficulty = "/medium/"
         if self.episode % 10 == 0:
             env_number = str(randrange(n_env))
-            print('ENV' + env_number)
+            print('CHOOSEN_ENV' + env_number)
             csv_file_path = os.path.dirname(
                 module_path.__file__) + "/environment_generator/generated_envs" + difficulty + "{0}/static_obstacles.csv".format(
                 "environment_" + env_number)
@@ -130,6 +134,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                                 reader]
 
         for sphere in self.spheres:
+            print(sphere[0])
             temp = p.loadURDF(sphere[0],
                               sphere[1:4:],
                               p.getQuaternionFromEuler([0, 0, 0]),
