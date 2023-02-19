@@ -134,7 +134,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                                 reader]
 
         for sphere in self.spheres:
-            print(sphere[0])
             temp = p.loadURDF(sphere[0],
                               sphere[1:4:],
                               p.getQuaternionFromEuler([0, 0, 0]),
