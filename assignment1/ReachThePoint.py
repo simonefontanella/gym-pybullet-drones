@@ -148,7 +148,6 @@ if __name__ == "__main__":
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
-        "no_done_at_end": True,
         "framework": "torch",
         "lr": 4e-3,  # 0.003
         "optimizer": "adam",
