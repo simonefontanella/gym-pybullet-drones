@@ -391,6 +391,28 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
     #     ############################################################
 
     def clipAndNormalizeSphere(self, spheres):
+        MAX_MARGIN = np.array([WORLDS_MARGIN[1], WORLDS_MARGIN[3], WORLDS_MARGIN[5]])
+        MIN_MARGIN = np.array([WORLDS_MARGIN[0], WORLDS_MARGIN[2], WORLDS_MARGIN[4]])
+        MIN_DISTANCE = 0
+
+        MAX_DISTANCE = np.linalg.norm(MAX_MARGIN - MIN_MARGIN)
+        norm_and_clipped = []
+        for s in spheres:
+            clipped_pos_x = np.clip(s['x'], WORLDS_MARGIN[0], WORLDS_MARGIN[1])
+            clipped_pos_y = np.clip(s['y'], WORLDS_MARGIN[2], WORLDS_MARGIN[3])
+            clipped_pos_z = np.clip(s['z'], WORLDS_MARGIN[4], WORLDS_MARGIN[5])
+
+            normalized_x = clipped_pos_x / WORLDS_MARGIN[1]
+            normalized_y = clipped_pos_y / WORLDS_MARGIN[3]
+            normalized_z = clipped_pos_z / WORLDS_MARGIN[5]
+            clipped_distance = np.clip(s["dist"] - s["radius"] - DRONE_RADIUS, MIN_DISTANCE, MAX_DISTANCE)
+            normalized_dist = clipped_distance / MAX_DISTANCE
+            norm_and_clipped.extend([normalized_x, normalized_y, normalized_z, normalized_dist])
+
+        return norm_and_clipped
+
+    ################################################################################
+    def clipAndNormalizeSphere_rev(self, spheres):
         # TODO necessita raggio sfera piu raggio drone?
         MAX_MARGIN = np.array([WORLDS_MARGIN[1], WORLDS_MARGIN[3], WORLDS_MARGIN[5]])
         MIN_MARGIN = np.array([WORLDS_MARGIN[0], WORLDS_MARGIN[2], WORLDS_MARGIN[4]])
