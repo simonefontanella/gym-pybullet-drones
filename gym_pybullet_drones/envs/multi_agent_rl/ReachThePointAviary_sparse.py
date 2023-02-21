@@ -196,7 +196,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # return -0.5 * np.linalg.norm(np.array([WORLDS_MARGIN[1], drone_pos[1], drone_pos[2]]) - drone_pos)
         # Speed max is self.SPEED_LIMIT, see BaseMultiagentAviary, use min max scaling
         vel_x = vel_x if vel_x <= self.SPEED_LIMIT else self.SPEED_LIMIT
-        return ((vel_x - 0) / (self.SPEED_LIMIT - 0)) if (
+        return self._minMaxScaling(vel_x, 0, self.SPEED_LIMIT) if (
                 prev_drone_pos[0] < drone_pos[0] and vel_x > self.SPEED_LIMIT * 0.5) else 0
 
     ################################################################################
@@ -452,11 +452,13 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         distances = [0, 0]
         # x is not used, because the drone need to go forward, can't go backward
         # y is normalized between -1 and 1
-        distances[0] = 2 * (drone_pos[1] - WORLDS_MARGIN_MINUS_DRONE_RADIUS[2]) / (
-                WORLDS_MARGIN_MINUS_DRONE_RADIUS[3] - WORLDS_MARGIN_MINUS_DRONE_RADIUS[2]) - 1
+
+        distances[0] = self._minMaxScaling(drone_pos[1], WORLDS_MARGIN_MINUS_DRONE_RADIUS[2],
+                                           WORLDS_MARGIN_MINUS_DRONE_RADIUS[3],
+                                           False)
         # Z is normalized between 0 and 1, because z pos canno't be negative
-        distances[1] = (drone_pos[2] - WORLDS_MARGIN_MINUS_DRONE_RADIUS[4]) / (
-                WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] - WORLDS_MARGIN_MINUS_DRONE_RADIUS[4])
+        distances[1] = self._minMaxScaling(drone_pos[2], WORLDS_MARGIN_MINUS_DRONE_RADIUS[4],
+                                           WORLDS_MARGIN_MINUS_DRONE_RADIUS[5])
         return distances
 
     #############################################################
@@ -515,6 +517,14 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             norm_and_clipped.extend([normalized_x, normalized_y, normalized_z, normalized_dist])
 
         return norm_and_clipped
+
+    ################################################################################
+    def _minMaxScaling(self, val, min, max, standard_rng=True):
+        if standard_rng:
+            return (val - min) / (max - min)
+        else:
+            return 2 * (val - min) / (
+                    max - min) - 1
 
     ################################################################################
     def _clipAndNormalizeState(self,
