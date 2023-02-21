@@ -405,8 +405,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         #             x_dist  y_dist  z_dist r   sphere
         sphere_low = [-1, -1, -1, 0] * 10
         sphere_high = [1, 1, 1, 1] * 10
-        low = [-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1] + sphere_low
-        high = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] + sphere_high
+        #      X   Y  Z
+        low = [-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0] + sphere_low
+        high = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] + sphere_high
 
         return spaces.Dict({i: spaces.Box(low=np.array(low),
                                           high=np.array(high),
@@ -429,18 +430,34 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # return {   i   : self._clipAndNormalizeState(self._getDroneStateVector(i)) for i in range(self.NUM_DRONES) }
         ############################################################
         #### OBS SPACE OF SIZE 52
-        obs_52 = np.zeros((self.NUM_DRONES, 52), dtype=np.float64)
+        obs_54 = np.zeros((self.NUM_DRONES, 54), dtype=np.float64)
         for i in self.get_agent_ids():
-            drone_pos = self._getDroneStateVector(i)
-            obs = self._clipAndNormalizeState(drone_pos)
-            close_sphere = self.getClosestSpheres(drone_pos[0:3])
+            drone_state = self._getDroneStateVector(i)
+            obs = self._clipAndNormalizeState(drone_state)
+            boundaries_distances = self.get_normalized_y_z_boundaries(drone_state[0:3])
+            close_sphere = self.getClosestSpheres(drone_state[0:3])
             # normalize_sphere = self.clipAndNormalizeSphere(close_sphere) # if used need to change _observationSpace
             normalize_sphere = self.clipAndNormalizeSphere_rev(close_sphere)
-            obs_52[i, :] = np.hstack(
-                [obs[0:3], obs[7:10], obs[10:13], obs[13:16], np.array(normalize_sphere, dtype=np.float64)]).reshape(
-                52, )
+            obs_54[i, :] = np.hstack(
+                [obs[0:3], obs[7:10], obs[10:13], obs[13:16], boundaries_distances,
+                 np.array(normalize_sphere, dtype=np.float64)]).reshape(
+                54, )
 
-        return {i: obs_52[i, :] for i in self.get_agent_ids()}
+        return {i: obs_54[i, :] for i in self.get_agent_ids()}
+
+    #############################################################
+    def get_normalized_y_z_boundaries(self, drone_pos):
+        # minX maxX minY maxY minZ maxZ
+
+        distances = [0, 0]
+        # x is not used, because the drone need to go forward, can't go backward
+        # y is normalized between -1 and 1
+        distances[0] = 2 * (drone_pos[1] - WORLDS_MARGIN_MINUS_DRONE_RADIUS[2]) / (
+                WORLDS_MARGIN_MINUS_DRONE_RADIUS[3] - WORLDS_MARGIN_MINUS_DRONE_RADIUS[2]) - 1
+        # Z is normalized between 0 and 1, because z pos canno't be negative
+        distances[1] = (drone_pos[2] - WORLDS_MARGIN_MINUS_DRONE_RADIUS[4]) / (
+                WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] - WORLDS_MARGIN_MINUS_DRONE_RADIUS[4])
+        return distances
 
     #############################################################
 
@@ -478,6 +495,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         max_dist_x = abs(WORLDS_MARGIN[0]) + abs(WORLDS_MARGIN[1])
         max_dist_y = abs(WORLDS_MARGIN[2]) + abs(WORLDS_MARGIN[3])
         max_dist_z = abs(WORLDS_MARGIN[4] + abs(WORLDS_MARGIN[5]))
+        # if field is -20,60 the min dist per axis is -80 +80
         for s in spheres:
             clipped_pos_x = np.clip(s['x_dist'] - s["radius"] - DRONE_RADIUS,  # posizione
                                     -max_dist_x + s["radius"] + DRONE_RADIUS,  # min distanza con segno
