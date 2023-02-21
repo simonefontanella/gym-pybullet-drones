@@ -144,15 +144,16 @@ if __name__ == "__main__":
 
     config = {  # **config,
         "env": ARGS.env,
-        "gamma": 0.9999,  # 0.999
+        "gamma": 0.9997,  # 0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-        "lr": 4e-3,  # 0.003
+        "sgd_minibatch_size": 1024,
+        "lr": 5e-5,  # 0.003
         "optimizer": "adam",
         # "num_envs_per_worker": 4,
-        # "lambda" : 0.95,
+        "lambda": 0.95,
         "multiagent": {
             # We only have one policy (calling it "shared").
             # Class, obs/act-spaces, and config will be derived
