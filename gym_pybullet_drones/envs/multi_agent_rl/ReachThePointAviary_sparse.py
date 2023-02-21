@@ -405,7 +405,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         #             x_dist  y_dist  z_dist r   sphere
         sphere_low = [-1, -1, -1, 0] * 10
         sphere_high = [1, 1, 1, 1] * 10
-        #      X   Y  Z
+        #      X   Y  Z   R   P   Y   VX  VY  VZ  WX  WY  WZ  WBY WBZ
         low = [-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0] + sphere_low
         high = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] + sphere_high
 
@@ -436,7 +436,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             obs = self._clipAndNormalizeState(drone_state)
             boundaries_distances = self.get_normalized_y_z_boundaries(drone_state[0:3])
             close_sphere = self.getClosestSpheres(drone_state[0:3])
-            # normalize_sphere = self.clipAndNormalizeSphere(close_sphere) # if used need to change _observationSpace
+            # normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere) # if used need to change _observationSpace
             normalize_sphere = self.clipAndNormalizeSphere_rev(close_sphere)
             obs_54[i, :] = np.hstack(
                 [obs[0:3], obs[7:10], obs[10:13], obs[13:16], boundaries_distances,
@@ -463,7 +463,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
     #############################################################
 
-    def clipAndNormalizeSphere(self, spheres):
+    def clipAndNormalizeSphere_old(self, spheres):
         MAX_MARGIN = np.array([WORLDS_MARGIN[1], WORLDS_MARGIN[3], WORLDS_MARGIN[5]], dtype=np.float64)
         MIN_MARGIN = np.array([WORLDS_MARGIN[0], WORLDS_MARGIN[2], WORLDS_MARGIN[4]], dtype=np.float64)
         MIN_DISTANCE = 0
@@ -486,7 +486,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
     ################################################################################
     def clipAndNormalizeSphere_rev(self, spheres):
-        # TODO necessita raggio sfera piu raggio drone?
         MAX_MARGIN = np.array([WORLDS_MARGIN[1], WORLDS_MARGIN[3], WORLDS_MARGIN[5]], dtype=np.float64)
         MIN_MARGIN = np.array([WORLDS_MARGIN[0], WORLDS_MARGIN[2], WORLDS_MARGIN[4]], dtype=np.float64)
         MIN_DISTANCE = 0
@@ -555,30 +554,31 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
         MAX_PITCH_ROLL = np.pi  # Full range
 
-        clipped_pos_x = np.clip(state[0], MIN_X, MAX_X)
-        clipped_pos_y = np.clip(state[1], MIN_Y, MAX_Y)
-        clipped_pos_z = np.clip(state[2], MIN_Z, MAX_Z)
+        pos_x = state[0]
+        pos_y = state[1]
+        pos_z = state[2]
         clipped_rp = np.clip(state[7:9], -MAX_PITCH_ROLL, MAX_PITCH_ROLL)
         clipped_vel_xy = np.clip(state[10:12], -MAX_LIN_VEL_XY, MAX_LIN_VEL_XY)
         clipped_vel_z = np.clip(state[12], -MAX_LIN_VEL_Z, MAX_LIN_VEL_Z)
 
         if self.GUI:
             self._clipAndNormalizeStateWarning(state,
-                                               clipped_pos_x,
-                                               clipped_pos_y,
-                                               clipped_pos_z,
+                                               pos_x,
+                                               pos_y,
+                                               pos_z,
                                                clipped_rp,
                                                clipped_vel_xy,
                                                clipped_vel_z
                                                )
 
-        normalized_pos_x = clipped_pos_x / MAX_X
-        normalized_pos_y = clipped_pos_y / MAX_Y
-        normalized_pos_z = clipped_pos_z / MAX_Z
-        normalized_rp = clipped_rp / MAX_PITCH_ROLL
+        normalized_pos_x = self._minMaxScaling(pos_x, MIN_X, MAX_X, False)
+        normalized_pos_y = self._minMaxScaling(pos_y, MIN_Y, MAX_Y, False)
+        normalized_pos_z = self._minMaxScaling(pos_z, MIN_Z, MAX_Z, True)
+        normalized_rp = self._minMaxScaling(clipped_rp, -MAX_PITCH_ROLL, MAX_PITCH_ROLL, False)
         normalized_y = state[9] / np.pi  # No reason to clip
-        normalized_vel_xy = clipped_vel_xy / MAX_LIN_VEL_XY
-        normalized_vel_z = clipped_vel_z / MAX_LIN_VEL_XY
+        normalized_vel_xy = self._minMaxScaling(clipped_vel_xy, -MAX_LIN_VEL_XY, MAX_LIN_VEL_XY, False)
+        normalized_vel_z = self._minMaxScaling(clipped_vel_z, -MAX_LIN_VEL_Z, MAX_LIN_VEL_Z, False)
+
         normalized_ang_vel = state[13:16] / np.linalg.norm(state[13:16]) if np.linalg.norm(
             state[13:16]) != 0 else state[13:16]
 
