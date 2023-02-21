@@ -23,6 +23,7 @@ WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] - DRON
 # threasold used to punish drone when it get near to spheres
 SPHERES_THRESHOLD = 0.5
 BOUNDARIES_THRESHOLD = 1
+DIFFICULTY = 'easy'
 # working dir need to be constant
 WORKING_DIR = os.getcwd()
 
@@ -120,7 +121,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # disable shadow for performance
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 0)
         n_env = 100
-        difficulty = "/medium/"
+        difficulty = "/" + DIFFICULTY + "/"
         if self.episode % 50 == 0:
             env_number = str(randrange(n_env))
             print('CHOOSEN_ENV' + env_number)
@@ -401,8 +402,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
     def _observationSpace(self):
         from gym import spaces
-        #             x  y  z r   sphere
-        sphere_low = [-1, -1, 0, 0] * 10
+        #             x_dist  y_dist  z_dist r   sphere
+        sphere_low = [-1, -1, -1, 0] * 10
         sphere_high = [1, 1, 1, 1] * 10
         low = [-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1] + sphere_low
         high = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] + sphere_high
@@ -433,8 +434,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             drone_pos = self._getDroneStateVector(i)
             obs = self._clipAndNormalizeState(drone_pos)
             close_sphere = self.getClosestSpheres(drone_pos[0:3])
-            normalize_sphere = self.clipAndNormalizeSphere(close_sphere)
-            # normalize_sphere = self.clipAndNormalizeSphere_rev(close_sphere)
+            # normalize_sphere = self.clipAndNormalizeSphere(close_sphere) # if used need to change _observationSpace
+            normalize_sphere = self.clipAndNormalizeSphere_rev(close_sphere)
             obs_52[i, :] = np.hstack(
                 [obs[0:3], obs[7:10], obs[10:13], obs[13:16], np.array(normalize_sphere, dtype=np.float64)]).reshape(
                 52, )
