@@ -122,7 +122,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 0)
         n_env = 100
         difficulty = "/" + DIFFICULTY + "/"
-        if self.episode % 50 == 0:
+        if self.episode % 25 == 0:
             env_number = str(randrange(n_env))
             print('CHOOSEN_ENV' + env_number)
             csv_file_path = os.path.dirname(
@@ -453,11 +453,11 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # x is not used, because the drone need to go forward, can't go backward
         # y is normalized between -1 and 1
 
-        distances[0] = self._minMaxScaling(drone_pos[1], WORLDS_MARGIN_MINUS_DRONE_RADIUS[2],
+        distances[0] = self._minMaxScaling(np.clip(,drone_pos[1],WORLDS_MARGIN_MINUS_DRONE_RADIUS[2],WORLDS_MARGIN_MINUS_DRONE_RADIUS[3]), WORLDS_MARGIN_MINUS_DRONE_RADIUS[2],
                                            WORLDS_MARGIN_MINUS_DRONE_RADIUS[3],
                                            False)
         # Z is normalized between 0 and 1, because z pos canno't be negative
-        distances[1] = self._minMaxScaling(drone_pos[2], WORLDS_MARGIN_MINUS_DRONE_RADIUS[4],
+        distances[1] = self._minMaxScaling(np.clip(,drone_pos[2],WORLDS_MARGIN_MINUS_DRONE_RADIUS[4],WORLDS_MARGIN_MINUS_DRONE_RADIUS[5]), WORLDS_MARGIN_MINUS_DRONE_RADIUS[4],
                                            WORLDS_MARGIN_MINUS_DRONE_RADIUS[5])
         return distances
 
@@ -554,9 +554,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
         MAX_PITCH_ROLL = np.pi  # Full range
 
-        pos_x = state[0]
-        pos_y = state[1]
-        pos_z = state[2]
+        pos_x = np.clip(state[0], MIN_X, MAX_X)
+        pos_y = np.clip(state[1], MIN_Y, MAX_Y)
+        pos_z = np.clip(state[2], MIN_Z, MAX_Z)
         clipped_rp = np.clip(state[7:9], -MAX_PITCH_ROLL, MAX_PITCH_ROLL)
         clipped_vel_xy = np.clip(state[10:12], -MAX_LIN_VEL_XY, MAX_LIN_VEL_XY)
         clipped_vel_z = np.clip(state[12], -MAX_LIN_VEL_Z, MAX_LIN_VEL_Z)
