@@ -453,12 +453,16 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # x is not used, because the drone need to go forward, can't go backward
         # y is normalized between -1 and 1
 
-        distances[0] = self._minMaxScaling(np.clip(,drone_pos[1],WORLDS_MARGIN_MINUS_DRONE_RADIUS[2],WORLDS_MARGIN_MINUS_DRONE_RADIUS[3]), WORLDS_MARGIN_MINUS_DRONE_RADIUS[2],
-                                           WORLDS_MARGIN_MINUS_DRONE_RADIUS[3],
-                                           False)
+        distances[0] = self._minMaxScaling(
+            np.clip(drone_pos[1], WORLDS_MARGIN_MINUS_DRONE_RADIUS[2], WORLDS_MARGIN_MINUS_DRONE_RADIUS[3]),
+            WORLDS_MARGIN_MINUS_DRONE_RADIUS[2],
+            WORLDS_MARGIN_MINUS_DRONE_RADIUS[3],
+            False)
         # Z is normalized between 0 and 1, because z pos canno't be negative
-        distances[1] = self._minMaxScaling(np.clip(,drone_pos[2],WORLDS_MARGIN_MINUS_DRONE_RADIUS[4],WORLDS_MARGIN_MINUS_DRONE_RADIUS[5]), WORLDS_MARGIN_MINUS_DRONE_RADIUS[4],
-                                           WORLDS_MARGIN_MINUS_DRONE_RADIUS[5])
+        distances[1] = self._minMaxScaling(
+            np.clip(drone_pos[2], WORLDS_MARGIN_MINUS_DRONE_RADIUS[4], WORLDS_MARGIN_MINUS_DRONE_RADIUS[5]),
+            WORLDS_MARGIN_MINUS_DRONE_RADIUS[4],
+            WORLDS_MARGIN_MINUS_DRONE_RADIUS[5])
         return distances
 
     #############################################################
