@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pybullet as p
+from gym import spaces
 
 from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMultiagentAviary
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
@@ -155,8 +156,15 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # this is done, because step use _computeXXX methods
         self.actual_step_drones_states = np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)],
                                                   dtype=np.float64)
+        new_action = {}
+        for k, v in action.items():
+            new_action[k] = np.array([1, v[0], v[1], 1])
+        # x = {0: np.array([0, 0.1, 0.1, 1]), 1: np.array([1, 0, 0, 1])}
+        # if self.step_counter >= 1000:
+        #    print(self.EPISODE_LEN_SEC)
+        # print(self.prev_drones_pos[0])
 
-        return super().step(action)
+        return super().step(new_action)
 
     ################################################################################
 
@@ -416,6 +424,39 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
         return spaces.Dict({i: spaces.Box(low=np.array(low),
                                           high=np.array(high),
+                                          dtype=np.float64
+                                          ) for i in range(self.NUM_DRONES)})
+
+    ################################################################################
+
+    def _actionSpace(self):
+        """Returns the action space of the environment.
+
+        Returns
+        -------
+        dict[int, ndarray]
+            A Dict() of Box() of size 1, 3, or 3, depending on the action type,
+            indexed by drone Id in integer format.
+
+        """
+        if self.ACT_TYPE in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
+            act_lower_bound = np.array([-1, -1])
+            act_upper_bound = np.array([1, 1])
+            return spaces.Dict({i: spaces.MultiDiscrete([1, 1]) for i in range(self.NUM_DRONES)})
+            return spaces.Dict({i: spaces.Box(low=act_lower_bound,
+                                              high=act_upper_bound,
+                                              dtype=np.float64
+                                              ) for i in range(self.NUM_DRONES)})
+
+        elif self.ACT_TYPE == ActionType.PID:
+            size = 3
+        elif self.ACT_TYPE in [ActionType.ONE_D_RPM, ActionType.ONE_D_DYN, ActionType.ONE_D_PID]:
+            size = 1
+        else:
+            print("[ERROR] in BaseMultiagentAviary._actionSpace()")
+            exit()
+        return spaces.Dict({i: spaces.Box(low=-1 * np.ones(size),
+                                          high=np.ones(size),
                                           dtype=np.float64
                                           ) for i in range(self.NUM_DRONES)})
 
