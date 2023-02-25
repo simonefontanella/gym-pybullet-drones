@@ -245,7 +245,7 @@ if __name__ == "__main__":
             print("[ERROR] unknown ActionType")
             exit()
         start = time.time()
-        duration = 200
+        duration = 20000
         for i in range(duration * int(temp_env.SIM_FREQ / temp_env.AGGR_PHY_STEPS)):  # Up to 6''
             #### Deploy the policies ###################################
             temp = {}
@@ -263,7 +263,7 @@ if __name__ == "__main__":
                                control=np.zeros(12)
                                )
             sync(np.floor(i * temp_env.AGGR_PHY_STEPS), start, temp_env.TIMESTEP)
-            # if done["__all__"]: obs = test_env.reset() # OPTIONAL EPISODE HALT
+            if done["__all__"]: obs = temp_env.reset()  # OPTIONAL EPISODE HALT
         temp_env.close()
         logger.save_as_csv("ma")  # Optional CSV save
         logger.plot()
