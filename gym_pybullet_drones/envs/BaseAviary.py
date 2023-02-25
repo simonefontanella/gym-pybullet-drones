@@ -13,6 +13,7 @@ import pybullet as p
 import pybullet_data
 from PIL import Image
 
+CAMERA_FPV = False
 from gym_pybullet_drones.utils.enums import DroneModel, Physics, ImageType
 
 
@@ -293,14 +294,14 @@ class BaseAviary(gym.Env):
                 if self._getDroneStateVector(i)[0] > max_position_x:
                     max_position_x = self._getDroneStateVector(i)[0]
                     cameraTargetPosition = self._getDroneStateVector(i)
-
         cameraTargetPosition = cameraTargetPosition[0:3]
-        # p.resetDebugVisualizerCamera(cameraDistance=0.4,
-        #                             cameraYaw=-90,
-        #                             cameraPitch=-20,
-        #                             cameraTargetPosition=cameraTargetPosition,
-        #                             physicsClientId=self.CLIENT
-        #                             )
+        if CAMERA_FPV:
+            p.resetDebugVisualizerCamera(cameraDistance=0.4,
+                                         cameraYaw=-90,
+                                         cameraPitch=-20,
+                                         cameraTargetPosition=cameraTargetPosition,
+                                         physicsClientId=self.CLIENT
+                                         )
 
         #### Save PNG video frames if RECORD=True and GUI=False ####
         if self.RECORD and not self.GUI and self.step_counter % self.CAPTURE_FREQ == 0:
