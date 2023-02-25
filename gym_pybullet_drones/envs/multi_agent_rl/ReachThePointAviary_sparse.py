@@ -155,8 +155,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # this is done, because step use _computeXXX methods
         self.actual_step_drones_states = np.array([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)],
                                                   dtype=np.float64)
-        for i in range(5):
-            super().step(action)
 
         return super().step(action)
 

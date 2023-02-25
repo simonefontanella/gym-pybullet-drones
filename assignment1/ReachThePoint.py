@@ -149,9 +149,11 @@ if __name__ == "__main__":
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-        "sgd_minibatch_size": 1024,
+        "sgd_minibatch_size": 4000,
         "lr": 5e-5,  # 0.003
-        "optimizer": "adam",
+        "optimizer": "RAdam",
+        "train_batch_size": 8000,
+        "kl_target": 0.04,
         # "num_envs_per_worker": 4,
         "lambda": 0.95,
         "multiagent": {
@@ -169,7 +171,7 @@ if __name__ == "__main__":
     }
 
     stop = {
-        "timesteps_total": 2000000,  # 100000 ~= 10'
+        "timesteps_total": 500000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
