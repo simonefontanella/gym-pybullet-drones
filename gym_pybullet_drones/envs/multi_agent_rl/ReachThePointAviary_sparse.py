@@ -284,7 +284,13 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                                   "dist": np.linalg.norm(drone_pos - sphere[1:4:])})
         sorted_dist = sorted(distances, key=operator.itemgetter('dist'))
 
-        return sorted_dist[:10] if len(sorted_dist) > 10 else sorted_dist[:len(sorted_dist)]
+        # fix in the case that i have surpassed all the spheres, needed 10 otherwise it will crash
+        while len(sorted_dist) < 10:
+            sorted_dist.append(
+                {'x_dist': 10000, 'y_dist': 10000, 'z_dist': 10000, 'radius': 0.1, 'x': 10000, 'y': 10000, 'z': 10000,
+                 'dist': 10000})
+
+        return sorted_dist[:10]
 
     ################################################################################
     def hit_world(self, drone_xyz):
