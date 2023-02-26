@@ -158,7 +158,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                                                   dtype=np.float64)
         new_action = {}
         for k, v in action.items():
-            new_action[k] = np.array([1, v[0], v[1], 1])
+            new_action[k] = np.array([1, v[0], v[1], 1], dtype=np.float64)
         # x = {0: np.array([0, 0.1, 0.1, 1]), 1: np.array([1, 0, 0, 1])}
         # if self.step_counter >= 1000:
         #    print(self.EPISODE_LEN_SEC)
@@ -292,7 +292,12 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                                   "dist": np.linalg.norm(drone_pos - sphere[1:4:])})
         sorted_dist = sorted(distances, key=operator.itemgetter('dist'))
 
-        return sorted_dist[:10] if len(sorted_dist) > 10 else sorted_dist[:len(sorted_dist)]
+        while len(sorted_dist) < 10:
+            sorted_dist.append(
+                {'x_dist': 10000, 'y_dist': 10000, 'z_dist': 10000, 'radius': 10000, 'x': 10000, 'y': 10000, 'z': 10000,
+                 'dist': 10000})
+
+        return sorted_dist[:10]
 
     ################################################################################
     def hit_world(self, drone_xyz):
