@@ -123,7 +123,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 0)
         n_env = 100
         difficulty = "/" + DIFFICULTY + "/"
-        if self.episode % 5 == 0:
+        if self.episode % 1 == 0:
             env_number = str(randrange(n_env))
             print('CHOOSEN_ENV' + env_number)
             csv_file_path = os.path.dirname(
@@ -186,19 +186,19 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             pushishment_near_walls = self.negRewardBaseOnTouchBoundary(i)
 
             # drone has won
-            if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
-                self.drone_has_collided[i] = True
-                rewards[i] = 100
+        if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
+            self.drone_has_collided[i] = True
+            rewards[i] = 100
+        else:
+            if punishment_near_spheres != 0:
+                rewards[i] = punishment_near_spheres
+            elif pushishment_near_walls != 0:
+                rewards[i] = pushishment_near_walls
             else:
-                if punishment_near_spheres != 0 or pushishment_near_walls != 0:
-                    rewards[i] = punishment_near_spheres
-                else:
-                    rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
-                                                          self.prev_drones_pos[i],
-                                                          self.actual_step_drones_states[i, 10])
-            if punishment_near_spheres > 0 or pushishment_near_walls > 0 or rewards[i] > 1:
-                print("             STRANGE!!!x{}x{}x{}x".format(punishment_near_spheres, pushishment_near_walls,
-                                                                 rewards))
+                rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
+                                                      self.prev_drones_pos[i],
+                                                      self.actual_step_drones_states[i, 10])
+
             self.prev_drones_pos[i] = self.actual_step_drones_states[i, 0:3]
         return rewards
 
