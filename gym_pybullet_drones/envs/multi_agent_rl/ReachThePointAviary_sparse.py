@@ -122,7 +122,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 0)
         n_env = 100
         difficulty = "/" + DIFFICULTY + "/"
-        if self.episode % 5 == 0:
+        if self.episode % 1 == 0:
             env_number = str(randrange(n_env))
             print('CHOOSEN_ENV' + env_number)
             csv_file_path = os.path.dirname(
