@@ -144,18 +144,27 @@ if __name__ == "__main__":
 
     config = {  # **config,
         "env": ARGS.env,
-        "gamma": 0.9997,  # 0.999
+        "gamma": tune.grid_search([0.99, 0.999, 0.9997]),  # 0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-        "sgd_minibatch_size": 4000,
-        "lr": 5e-5,  # 0.003
+        "lr": tune.grid_search([0.01, 0.001, 0.0001, 0.0005, 0.00005]),
+        "num_sgd_iter": tune.grid_search([5, 10, 30]),
+        "sgd_minibatch_size": tune.grid_search([32, 128, 512, 1024]),
         "optimizer": "RAdam",
-        "train_batch_size": 8000,
-        "kl_target": 0.04,
+        # "kl_coeff": 0.2,
+        "train_batch_size": 4000,
+        "kl_target": tune.grid_search([0.005, 0.01, 0.04]),
         # "num_envs_per_worker": 4,
         "lambda": 0.95,
+        "model": {
+            "fcnet_hiddens": [256, 128, 128, 64],
+            "fcnet_activation": tune.grid_search(["tanh", "relu"]),
+            "use_lstm": True,
+            "max_seq_len": 20,
+            "lstm_cell_size": 32,
+        },
         "multiagent": {
             # We only have one policy (calling it "shared").
             # Class, obs/act-spaces, and config will be derived
@@ -167,11 +176,12 @@ if __name__ == "__main__":
             "policy_mapping_fn": lambda x: "pol0" if x == 0 else "pol1",
             # Always use "shared" policy.
 
-        }
+        },
+
     }
 
     stop = {
-        "timesteps_total": 500000,  # 100000 ~= 10'
+        "timesteps_total": 1000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
