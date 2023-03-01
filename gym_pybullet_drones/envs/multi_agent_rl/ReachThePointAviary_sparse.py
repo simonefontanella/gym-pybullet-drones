@@ -183,11 +183,11 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                 self.drone_has_collided[i] = True
                 rewards[i] = 100
 
-                rewards[i] += punishment_near_spheres
-                rewards[i] += pushishment_near_walls
-                rewards[i] += self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
-                                                       self.prev_drones_pos[i],
-                                                       self.actual_step_drones_states[i, 10])
+            rewards[i] += punishment_near_spheres
+            rewards[i] += pushishment_near_walls
+            rewards[i] += self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
+                                                   self.prev_drones_pos[i],
+                                                   self.actual_step_drones_states[i, 10])
 
             self.prev_drones_pos[i] = self.actual_step_drones_states[i, 0:3]
         return rewards
