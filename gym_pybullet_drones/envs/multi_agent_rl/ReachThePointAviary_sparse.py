@@ -177,6 +177,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             The reward value for each drone.
 
         """
+
         rewards = {}
         for i in self.get_agent_ids():
             # if self.drone_has_collided[i]:
@@ -186,18 +187,18 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             pushishment_near_walls = self.negRewardBaseOnTouchBoundary(i)
 
             # drone has won
-        if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
-            self.drone_has_collided[i] = True
-            rewards[i] = 100
-        else:
-            if punishment_near_spheres != 0:
-                rewards[i] = punishment_near_spheres
-            elif pushishment_near_walls != 0:
-                rewards[i] = pushishment_near_walls
+            if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
+                self.drone_has_collided[i] = True
+                rewards[i] = 100
             else:
-                rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
-                                                      self.prev_drones_pos[i],
-                                                      self.actual_step_drones_states[i, 10])
+                if punishment_near_spheres != 0:
+                    rewards[i] = punishment_near_spheres
+                elif pushishment_near_walls != 0:
+                    rewards[i] = pushishment_near_walls
+                else:
+                    rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
+                                                          self.prev_drones_pos[i],
+                                                          self.actual_step_drones_states[i, 10])
 
             self.prev_drones_pos[i] = self.actual_step_drones_states[i, 0:3]
         return rewards
