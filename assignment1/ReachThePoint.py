@@ -144,13 +144,13 @@ if __name__ == "__main__":
 
     config = {  # **config,
         "env": ARGS.env,
-        "gamma": tune.grid_search([0.99, 0.999, 0.9997]),  # 0.999
+        "gamma": tune.grid_search([0.999, 0.9997]),  # 0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-        "lr": tune.grid_search([0.01, 0.001, 0.0001, 0.0005, 0.00005]),
-        "num_sgd_iter": tune.grid_search([5, 10, 30]),
+        "lr": tune.grid_search([0.001, 0.0005, 0.00005]),
+        "num_sgd_iter": tune.grid_search([10, 30]),
         "sgd_minibatch_size": tune.grid_search([128, 512, 1024]),
         "optimizer": "RAdam",
         # "kl_coeff": 0.2,
