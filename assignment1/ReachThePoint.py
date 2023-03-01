@@ -151,7 +151,7 @@ if __name__ == "__main__":
         "framework": "torch",
         "lr": tune.grid_search([0.01, 0.001, 0.0001, 0.0005, 0.00005]),
         "num_sgd_iter": tune.grid_search([5, 10, 30]),
-        "sgd_minibatch_size": tune.grid_search([32, 128, 512, 1024]),
+        "sgd_minibatch_size": tune.grid_search([128, 512, 1024]),
         "optimizer": "RAdam",
         # "kl_coeff": 0.2,
         "train_batch_size": 4000,
@@ -160,7 +160,7 @@ if __name__ == "__main__":
         "lambda": 0.95,
         "model": {
             "fcnet_hiddens": [256, 128, 128, 64],
-            "fcnet_activation": tune.grid_search(["tanh", "relu"]),
+            "fcnet_activation": "tanh",
             "use_lstm": True,
             "max_seq_len": 20,
             "lstm_cell_size": 32,
