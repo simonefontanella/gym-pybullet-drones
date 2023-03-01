@@ -8,7 +8,7 @@ from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMul
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 
-COLLISION_MALUS = -20
+COLLISION_MALUS = -200
 DRONE_RADIUS = .06
 WORLDS_MARGIN = [-20, 60, -10, 10, 0, 10]  # minX maxX minY maxY minZ maxZ
 WORLDS_MARGIN_MINUS_DRONE_RADIUS = WORLDS_MARGIN.copy()
@@ -103,6 +103,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.prev_drones_pos.append(self.INIT_XYZS[1, :])
         self.actual_step_drones_states = np.array([], dtype=np.float64)
         self.drone_has_collided = {i: False for i in range(self.NUM_DRONES)}
+        self.passed_spheres = []
 
     ################################################################################
 
@@ -183,23 +184,20 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             # if self.drone_has_collided[i]:
             #    rewards[i] = 0
             #    continue
+            rewards[i] = 0
             punishment_near_spheres = self.negRewardBaseOnSphereDistance(i)
             pushishment_near_walls = self.negRewardBaseOnTouchBoundary(i)
-
+            rewards[i] = 0
             # drone has won
             if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
                 self.drone_has_collided[i] = True
                 rewards[i] = 100
-            else:
-                if punishment_near_spheres != 0:
-                    rewards[i] = punishment_near_spheres
-                elif pushishment_near_walls != 0:
-                    rewards[i] = pushishment_near_walls
-                else:
-                    rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
-                                                          self.prev_drones_pos[i],
-                                                          self.actual_step_drones_states[i, 10])
 
+            rewards[i] += punishment_near_spheres
+
+            rewards[i] += pushishment_near_walls
+
+            rewards[i] += self.rewardSurpassSphere(self.actual_step_drones_states[i, 0:3])
             self.prev_drones_pos[i] = self.actual_step_drones_states[i, 0:3]
         return rewards
 
@@ -250,7 +248,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         import random
         self.episode += 1
         self.prev_drones_pos = []
-
+        self.passed_spheres = []
         # check WORLDS_MARGIN for this, randomize the spawn position remaining away from sphere spawn area, need to be done before
         # super.reset()
         # self.INIT_XYZS[0] = np.array([random.randrange(2, 3), random.randrange(0, 2), random.randrange(2, 8)])
@@ -263,6 +261,18 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.prev_drones_pos.append(self.INIT_XYZS[1, :])
         self.drone_has_collided = {i: False for i in range(self.NUM_DRONES)}
         return super().reset()
+
+    ################################################################################
+    def rewardSurpassSphere(self, drone_pos):
+        for sphere in self.spheres:
+            sphere_x = sphere[1]
+            drone_x = drone_pos[0]
+            radius = sphere[4]
+            if (sphere_x + radius) < drone_x:
+                if sphere not in self.passed_spheres:
+                    self.passed_spheres.append(sphere)
+                    return 10
+        return 0
 
     ################################################################################
     def getClosestSpheres(self, drone_pos):
