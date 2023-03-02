@@ -175,7 +175,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # if self.step_counter >= 1000:
         #    print(self.EPISODE_LEN_SEC)
         # print(self.prev_drones_pos[0])
-        print(new_action)
         return super().step(new_action)
 
     ################################################################################
