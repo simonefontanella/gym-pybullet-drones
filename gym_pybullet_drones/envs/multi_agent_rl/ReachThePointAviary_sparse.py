@@ -1,4 +1,5 @@
 import os
+import random
 
 import numpy as np
 import pybullet as p
@@ -22,8 +23,8 @@ WORLDS_MARGIN_MINUS_DRONE_RADIUS[4] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[4] + DRON
 WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] - DRONE_RADIUS
 
 # threasold used to punish drone when it get near to spheres
-SPHERES_THRESHOLD = 0.5
-BOUNDARIES_THRESHOLD = 1
+SPHERES_THRESHOLD = 0.35
+BOUNDARIES_THRESHOLD = 0.5
 DIFFICULTY = 'easy'
 # working dir need to be constant
 WORKING_DIR = os.getcwd()
@@ -135,6 +136,15 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                 self.spheres = [[str(rows[0]), float(rows[1]), float(rows[2]), float(rows[3]), float(rows[4])] for rows
                                 in
                                 reader]
+        # adding one spheres in front of the drones to avoid lucky wins
+        self.spheres.append(['sphere_small.urdf', self.INIT_XYZS[0][0] + random.uniform(4, 8),
+                             self.INIT_XYZS[0][1] + random.uniform(0, 0.15),
+                             self.INIT_XYZS[0][2] + random.uniform(0, 0.15),
+                             random.uniform(0.30, 1.25)])
+        self.spheres.append(['sphere_small.urdf', self.INIT_XYZS[1][0] + random.uniform(4, 8),
+                             self.INIT_XYZS[1][1] + random.uniform(0, 0.15),
+                             self.INIT_XYZS[1][2] + random.uniform(0, 0.15),
+                             random.uniform(0.30, 1.25)])
 
         for sphere in self.spheres:
             temp = p.loadURDF(sphere[0],
@@ -158,12 +168,14 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                                                   dtype=np.float64)
         new_action = {}
         for k, v in action.items():
-            new_action[k] = np.array([1, v[0], v[1], 1], dtype=np.float64)
-        # x = {0: np.array([0, 0.1, 0.1, 1]), 1: np.array([1, 0, 0, 1])}
+            new_action[k] = np.array([0.00001, v[0], v[1], 1], dtype=np.float64)
+        # x = {0: np.array([0.00001, 0, 0, 1]), 1: np.array([0.1, 0, 0, 1])}
+        # if self.step_counter >= 100 and self.step_counter <= 600:
+        #    x = {0: np.array([0.00001, 1, 0, 1]), 1: np.array([0.1, 0, 0, 1])}
         # if self.step_counter >= 1000:
         #    print(self.EPISODE_LEN_SEC)
         # print(self.prev_drones_pos[0])
-
+        print(new_action)
         return super().step(new_action)
 
     ################################################################################
@@ -189,7 +201,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             # drone has won
             if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
                 self.drone_has_collided[i] = True
-                rewards[i] = 100
+                rewards[i] = 1000
             else:
                 if punishment_near_spheres != 0:
                     rewards[i] = punishment_near_spheres
@@ -230,7 +242,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         """
         self.closest_sphere_distance[drone_index] = self.getClosestSpheres(
             self.actual_step_drones_states[drone_index, 0:3])
-        reward = 0
+
         for sphere in self.closest_sphere_distance[drone_index]:
             radius = sphere['radius']
             dist = sphere['dist'] - radius - DRONE_RADIUS
@@ -238,12 +250,12 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                 if dist <= 0:
                     # drone collide with a sphere
                     self.drone_has_collided[drone_index] = True
-                    reward = COLLISION_MALUS
-                    break
+                    return COLLISION_MALUS
+
                 # the more near the drone gets the more penalty it receive
-                reward = -(2 * (SPHERES_THRESHOLD - dist))
-                break
-        return reward
+                return -((SPHERES_THRESHOLD - dist))
+
+        return 0
 
     ################################################################################
     def reset(self):
@@ -449,11 +461,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         if self.ACT_TYPE in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
             act_lower_bound = np.array([-1, -1])
             act_upper_bound = np.array([1, 1])
-            return spaces.Dict({i: spaces.MultiDiscrete([1, 1]) for i in range(self.NUM_DRONES)})
-            return spaces.Dict({i: spaces.Box(low=act_lower_bound,
-                                              high=act_upper_bound,
-                                              dtype=np.float64
-                                              ) for i in range(self.NUM_DRONES)})
+            return spaces.Dict({i: spaces.MultiDiscrete([2, 2]) for i in range(self.NUM_DRONES)})
 
         elif self.ACT_TYPE == ActionType.PID:
             size = 3
