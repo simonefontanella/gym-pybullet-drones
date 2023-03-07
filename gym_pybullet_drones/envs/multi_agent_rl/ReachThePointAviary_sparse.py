@@ -1,4 +1,5 @@
 import os
+import random
 
 import numpy as np
 import pybullet as p
@@ -21,8 +22,8 @@ WORLDS_MARGIN_MINUS_DRONE_RADIUS[4] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[4] + DRON
 WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] - DRONE_RADIUS
 
 # threasold used to punish drone when it get near to spheres
-SPHERES_THRESHOLD = 0.5
-BOUNDARIES_THRESHOLD = 1
+SPHERES_THRESHOLD = 0.15
+BOUNDARIES_THRESHOLD = 0.25
 DIFFICULTY = 'easy'
 # working dir need to be constant
 WORKING_DIR = os.getcwd()
@@ -134,6 +135,15 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                 self.spheres = [[str(rows[0]), float(rows[1]), float(rows[2]), float(rows[3]), float(rows[4])] for rows
                                 in
                                 reader]
+        # adding one spheres in front of the drones to avoid lucky wins
+        self.spheres.append(['sphere_small.urdf', self.INIT_XYZS[0][0] + random.uniform(4, 8),
+                             self.INIT_XYZS[0][1] + random.uniform(0, 0.15),
+                             self.INIT_XYZS[0][2] + random.uniform(0, 0.15),
+                             random.uniform(0.30, 1.25)])
+        self.spheres.append(['sphere_small.urdf', self.INIT_XYZS[1][0] + random.uniform(4, 8),
+                             self.INIT_XYZS[1][1] + random.uniform(0, 0.15),
+                             self.INIT_XYZS[1][2] + random.uniform(0, 0.15),
+                             random.uniform(0.30, 1.25)])
 
         for sphere in self.spheres:
             temp = p.loadURDF(sphere[0],

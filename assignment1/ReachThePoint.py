@@ -144,24 +144,24 @@ if __name__ == "__main__":
 
     config = {  # **config,
         "env": ARGS.env,
-        "gamma": tune.grid_search([0.999, 0.9997]),  # 0.999
+        "gamma": 0.9990,  # 0.999
         "num_workers": 0 + ARGS.workers,
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-        "lr": tune.grid_search([0.001, 0.0005, 0.00005]),
-        "num_sgd_iter": tune.grid_search([10, 30]),
-        "sgd_minibatch_size": tune.grid_search([128, 512, 1024]),
+        "lr": 0.0001,
+        "num_sgd_iter": 50,
+        "sgd_minibatch_size": 1024,
         "optimizer": "RAdam",
         # "kl_coeff": 0.2,
         "train_batch_size": 4000,
-        "kl_target": tune.grid_search([0.005, 0.01, 0.04]),
+        "kl_target": 0.01,
         # "num_envs_per_worker": 4,
         "lambda": 0.95,
         "model": {
-            "fcnet_hiddens": [256, 128, 128, 64],
+            "fcnet_hiddens": [256, 256, 128, 128, 64],
             "fcnet_activation": "tanh",
-            "use_lstm": True,
+            "use_lstm": False,
             "max_seq_len": 20,
             "lstm_cell_size": 32,
         },
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     }
 
     stop = {
-        "timesteps_total": 1000000,  # 100000 ~= 10'
+        "timesteps_total": 10000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
@@ -196,7 +196,7 @@ if __name__ == "__main__":
                 result = agent.train()
                 print(pretty_print(result))
 
-                if i % 5 == 0:
+                if i % 1 == 0:
                     checkpoint_dir = agent.save()
                     print(f"Checkpoint saved in directory {checkpoint_dir}")
 
