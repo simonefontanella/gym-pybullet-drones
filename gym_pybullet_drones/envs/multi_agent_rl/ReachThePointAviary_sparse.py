@@ -103,6 +103,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.prev_drones_pos.append(self.INIT_XYZS[1, :])
         self.actual_step_drones_states = np.array([], dtype=np.float64)
         self.drone_has_collided = {i: False for i in range(self.NUM_DRONES)}
+        self.drone_stacked_obs = {i: np.array([1 for _ in range(4 * 5)], dtype=np.float64) for i in
+                                  range(self.NUM_DRONES)}
 
     ################################################################################
 
@@ -263,6 +265,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.prev_drones_pos.append(self.INIT_XYZS[0, :])
         self.prev_drones_pos.append(self.INIT_XYZS[1, :])
         self.drone_has_collided = {i: False for i in range(self.NUM_DRONES)}
+        self.drone_stacked_obs = {i: np.array([1 for _ in range(4 * 5)], dtype=np.float64) for i in
+                                  range(self.NUM_DRONES)}
         return super().reset()
 
     ################################################################################
@@ -459,10 +463,13 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             close_sphere = self.getClosestSpheres(drone_state[0:3])
             # normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere) # if used need to change _observationSpace
             normalize_sphere = self.clipAndNormalizeSphere_rev(close_sphere)
+
             obs_54[i, :] = np.hstack(
                 [obs[0:3], obs[7:10], obs[10:13], obs[13:16], boundaries_distances,
-                 np.array(normalize_sphere, dtype=np.float64)]).reshape(
+                 np.append(normalize_sphere[:4 * 5], self.drone_stacked_obs[i])]).reshape(
                 54, )
+
+            self.drone_stacked_obs[i] = np.array(normalize_sphere[:4 * 5], dtype=np.float64)
 
         return {i: obs_54[i, :] for i in self.get_agent_ids()}
 
