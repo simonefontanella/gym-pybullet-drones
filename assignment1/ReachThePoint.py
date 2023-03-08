@@ -153,6 +153,7 @@ if __name__ == "__main__":
         "num_sgd_iter": 50,
         "sgd_minibatch_size": 1024,
         "optimizer": "RAdam",
+        "entropy_coeff": 0.002,
         # "kl_coeff": 0.2,
         "train_batch_size": 4000,
         "kl_target": 0.01,
@@ -181,7 +182,7 @@ if __name__ == "__main__":
     }
 
     stop = {
-        "timesteps_total": 1000000,  # 100000 ~= 10'
+        "timesteps_total": 5000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
@@ -244,6 +245,7 @@ if __name__ == "__main__":
 
         #### Show, record a video, and log the model's performance #
         obs = temp_env.reset()
+        temp_env.render()
         logger = Logger(logging_freq_hz=int(temp_env.SIM_FREQ / temp_env.AGGR_PHY_STEPS),
                         num_drones=NUM_DRONES
                         )

@@ -9,7 +9,7 @@ from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import Actio
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 
 COLLISION_MALUS = -20
-DRONE_RADIUS = .06
+DRONE_RADIUS = .07
 WORLDS_MARGIN = [-20, 60, -10, 10, 0, 10]  # minX maxX minY maxY minZ maxZ
 WORLDS_MARGIN_MINUS_DRONE_RADIUS = WORLDS_MARGIN.copy()
 
@@ -22,7 +22,7 @@ WORLDS_MARGIN_MINUS_DRONE_RADIUS[4] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[4] + DRON
 WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] - DRONE_RADIUS
 
 # threasold used to punish drone when it get near to spheres
-SPHERES_THRESHOLD = 0.15
+SPHERES_THRESHOLD = 0.75
 BOUNDARIES_THRESHOLD = 0.25
 DIFFICULTY = 'easy'
 # working dir need to be constant
@@ -188,20 +188,17 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             #    continue
             punishment_near_spheres = self.negRewardBaseOnSphereDistance(i)
             pushishment_near_walls = self.negRewardBaseOnTouchBoundary(i)
-
+            rewards[i] = 0
             # drone has won
             if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
                 self.drone_has_collided[i] = True
                 rewards[i] = 100
             else:
-                if punishment_near_spheres != 0:
-                    rewards[i] = punishment_near_spheres
-                elif pushishment_near_walls != 0:
-                    rewards[i] = pushishment_near_walls
-                else:
-                    rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
-                                                          self.prev_drones_pos[i],
-                                                          self.actual_step_drones_states[i, 10])
+                rewards[i] += punishment_near_spheres
+                rewards[i] += pushishment_near_walls
+                rewards[i] += self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
+                                                       self.prev_drones_pos[i],
+                                                       self.actual_step_drones_states[i, 10])
 
             self.prev_drones_pos[i] = self.actual_step_drones_states[i, 0:3]
         return rewards
@@ -300,7 +297,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # fix in the case that i have surpassed all the spheres, needed 10 otherwise it will crash
         while len(sorted_dist) < 10:
             sorted_dist.append(
-                {'x_dist': 10000, 'y_dist': 10000, 'z_dist': 10000, 'radius': 0.1, 'x': 10000, 'y': 10000, 'z': 10000,
+                {'x_center_dist': 10000, 'y_center_dist': 10000, 'z_center_dist': 10000, 'radius': 0.1,
+                 'x_sphere_pos': 10000, 'y_sphere_pos': 10000, 'z_sphere_pos': 10000,
                  'dist': 10000})
 
         return sorted_dist[:10]
