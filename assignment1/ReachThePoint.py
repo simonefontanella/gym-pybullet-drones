@@ -149,7 +149,7 @@ if __name__ == "__main__":
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-        "lr": 0.0001,
+        "lr": 0.00001,
         "num_sgd_iter": 50,
         "sgd_minibatch_size": 1024,
         "optimizer": "RAdam",
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     }
 
     stop = {
-        "timesteps_total": 10000000,  # 100000 ~= 10'
+        "timesteps_total": 1000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
