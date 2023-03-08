@@ -288,7 +288,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                 drone_z = drone_pos[2]
 
                 distances.append({"x_dist": sphere_x - drone_x,
-                                  # TODO non sembrano corrette, le distanze per le componenti possono essere cosi negative
                                   "y_dist": sphere_y - drone_y,
                                   "z_dist": sphere_z - drone_z,
                                   "radius": radius,
@@ -427,8 +426,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
     def _observationSpace(self):
         from gym import spaces
+        # x is from 0 to 1, because we don't care about behind spheres
         #             x_dist  y_dist  z_dist r   sphere
-        sphere_low = [-1, -1, -1, 0] * 10
+        sphere_low = [0, -1, -1, 0] * 10
         sphere_high = [1, 1, 1, 1] * 10
         #      X   Y  Z   R   P   Y   VX  VY  VZ  WX  WY  WZ  WBY WBZ
         low = [-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0] + sphere_low
@@ -462,7 +462,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             boundaries_distances = self.get_normalized_y_z_boundaries(drone_state[0:3])
             close_sphere = self.getClosestSpheres(drone_state[0:3])
             # normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere) # if used need to change _observationSpace
-            normalize_sphere = self.clipAndNormalizeSphere_rev_global(close_sphere)
+            normalize_sphere = self.clipAndNormalizeSphere_rev_local(close_sphere)
 
             obs_54[i, :] = np.hstack(
                 [obs[0:3], obs[7:10], obs[10:13], obs[13:16], boundaries_distances,
@@ -517,6 +517,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         return norm_and_clipped
 
     ################################################################################
+    # TODO Bugged? need review
     def clipAndNormalizeSphere_rev_global(self, spheres):
         MAX_MARGIN = np.array([WORLDS_MARGIN[1], WORLDS_MARGIN[3], WORLDS_MARGIN[5]], dtype=np.float64)
         MIN_MARGIN = np.array([WORLDS_MARGIN[0], WORLDS_MARGIN[2], WORLDS_MARGIN[4]], dtype=np.float64)
@@ -551,35 +552,15 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
     ################################################################################
     def clipAndNormalizeSphere_rev_local(self, spheres):
-        MAX_MARGIN = np.array([WORLDS_MARGIN[1], WORLDS_MARGIN[3], WORLDS_MARGIN[5]], dtype=np.float64)
-        MIN_MARGIN = np.array([WORLDS_MARGIN[0], WORLDS_MARGIN[2], WORLDS_MARGIN[4]], dtype=np.float64)
-        MIN_DISTANCE = 0
-
-        MAX_DISTANCE = np.linalg.norm(MAX_MARGIN - MIN_MARGIN) - DRONE_RADIUS
         norm_and_clipped = []
 
-        max_dist_x = abs(WORLDS_MARGIN[0]) + abs(WORLDS_MARGIN[1])
-        max_dist_y = abs(WORLDS_MARGIN[2]) + abs(WORLDS_MARGIN[3])
-        max_dist_z = abs(WORLDS_MARGIN[4] + abs(WORLDS_MARGIN[5]))
-        # if field is -20,60 the min dist per axis is -80 +80
+        # min dist, max dist 0, 5
         for s in spheres:
-            clipped_pos_x = np.clip(s['x_dist'] - s["radius"] - DRONE_RADIUS,  # posizione
-                                    -max_dist_x + s["radius"] + DRONE_RADIUS,  # min distanza con segno
-                                    max_dist_x - s["radius"] - DRONE_RADIUS)  # max distanza con segno
-            clipped_pos_y = np.clip(s['y_dist'] - s["radius"] - DRONE_RADIUS,
-                                    -max_dist_y + s["radius"] + DRONE_RADIUS,
-                                    max_dist_y - s["radius"] - DRONE_RADIUS)
-            clipped_pos_z = np.clip(s['z_dist'] - s["radius"] - DRONE_RADIUS,
-                                    -max_dist_z + s["radius"] + DRONE_RADIUS,
-                                    max_dist_z - s["radius"] - DRONE_RADIUS)
-
-            normalized_x = clipped_pos_x / (max_dist_x - s["radius"] - DRONE_RADIUS)
-            normalized_y = clipped_pos_y / (max_dist_y - s["radius"] - DRONE_RADIUS)
-            normalized_z = clipped_pos_z / (max_dist_z - s["radius"] - DRONE_RADIUS)
-            clipped_distance = np.clip(s["dist"] - s["radius"] - DRONE_RADIUS, MIN_DISTANCE, MAX_DISTANCE - s["radius"])
-            normalized_dist = clipped_distance / (MAX_DISTANCE - s["radius"])
+            normalized_x = self._minMaxScaling(s["x_dist"] - s["radius"] - DRONE_RADIUS, 0, 5, standard_rng=True)
+            normalized_y = self._minMaxScaling(s["y_dist"] - s["radius"] - DRONE_RADIUS, -5, 5, standard_rng=False)
+            normalized_z = self._minMaxScaling(s["z_dist"] - s["radius"] - DRONE_RADIUS, -5, 5, standard_rng=False)
+            normalized_dist = self._minMaxScaling(s["dist"] - s["radius"] - DRONE_RADIUS, 0, 5, standard_rng=True)
             norm_and_clipped.extend([normalized_x, normalized_y, normalized_z, normalized_dist])
-
         return norm_and_clipped
 
     ################################################################################
