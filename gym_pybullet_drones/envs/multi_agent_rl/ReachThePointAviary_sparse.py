@@ -281,19 +281,19 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             sphere_x = sphere[1]
             drone_x = drone_pos[0]
             radius = sphere[4]
-            if (sphere_x + radius) >= drone_x:
+            if (sphere_x + radius + DRONE_RADIUS) >= drone_x:
                 sphere_y = sphere[2]
                 drone_y = drone_pos[1]
                 sphere_z = sphere[3]
                 drone_z = drone_pos[2]
 
-                distances.append({"x_dist": sphere_x - drone_x,
-                                  "y_dist": sphere_y - drone_y,
-                                  "z_dist": sphere_z - drone_z,
+                distances.append({"x_center_dist": sphere_x - drone_x,
+                                  "y_center_dist": sphere_y - drone_y,
+                                  "z_center_dist": sphere_z - drone_z,
                                   "radius": radius,
-                                  "x": sphere_x,
-                                  "y": sphere_y,
-                                  "z": sphere_z,
+                                  "x_sphere_pos": sphere_x,
+                                  "y_sphere_pos": sphere_y,
+                                  "z_sphere_pos": sphere_z,
                                   "dist": np.linalg.norm(drone_pos - sphere[1:4:])})
         sorted_dist = sorted(distances, key=operator.itemgetter('dist'))
 
@@ -482,13 +482,13 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # y is normalized between -1 and 1
 
         distances[0] = self._minMaxScaling(
-            np.clip(drone_pos[1], WORLDS_MARGIN_MINUS_DRONE_RADIUS[2], WORLDS_MARGIN_MINUS_DRONE_RADIUS[3]),
+            drone_pos[1],
             WORLDS_MARGIN_MINUS_DRONE_RADIUS[2],
             WORLDS_MARGIN_MINUS_DRONE_RADIUS[3],
             False)
         # Z is normalized between 0 and 1, because z pos canno't be negative
         distances[1] = self._minMaxScaling(
-            np.clip(drone_pos[2], WORLDS_MARGIN_MINUS_DRONE_RADIUS[4], WORLDS_MARGIN_MINUS_DRONE_RADIUS[5]),
+            drone_pos[2],
             WORLDS_MARGIN_MINUS_DRONE_RADIUS[4],
             WORLDS_MARGIN_MINUS_DRONE_RADIUS[5])
         return distances
@@ -556,9 +556,11 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
         # min dist, max dist 0, 5
         for s in spheres:
-            normalized_x = self._minMaxScaling(s["x_dist"] - s["radius"] - DRONE_RADIUS, 0, 5, standard_rng=True)
-            normalized_y = self._minMaxScaling(s["y_dist"] - s["radius"] - DRONE_RADIUS, -5, 5, standard_rng=False)
-            normalized_z = self._minMaxScaling(s["z_dist"] - s["radius"] - DRONE_RADIUS, -5, 5, standard_rng=False)
+            normalized_x = self._minMaxScaling(s["x_center_dist"] - s["radius"] - DRONE_RADIUS, 0, 5, standard_rng=True)
+            normalized_y = self._minMaxScaling(s["y_center_dist"] - s["radius"] - DRONE_RADIUS, -5, 5,
+                                               standard_rng=False)
+            normalized_z = self._minMaxScaling(s["z_center_dist"] - s["radius"] - DRONE_RADIUS, -5, 5,
+                                               standard_rng=False)
             normalized_dist = self._minMaxScaling(s["dist"] - s["radius"] - DRONE_RADIUS, 0, 5, standard_rng=True)
             norm_and_clipped.extend([normalized_x, normalized_y, normalized_z, normalized_dist])
         return norm_and_clipped
