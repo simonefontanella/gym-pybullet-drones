@@ -462,7 +462,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             boundaries_distances = self.get_normalized_y_z_boundaries(drone_state[0:3])
             close_sphere = self.getClosestSpheres(drone_state[0:3])
             # normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere) # if used need to change _observationSpace
-            normalize_sphere = self.clipAndNormalizeSphere_rev(close_sphere)
+            normalize_sphere = self.clipAndNormalizeSphere_rev_global(close_sphere)
 
             obs_54[i, :] = np.hstack(
                 [obs[0:3], obs[7:10], obs[10:13], obs[13:16], boundaries_distances,
@@ -517,7 +517,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         return norm_and_clipped
 
     ################################################################################
-    def clipAndNormalizeSphere_rev(self, spheres):
+    def clipAndNormalizeSphere_rev_global(self, spheres):
         MAX_MARGIN = np.array([WORLDS_MARGIN[1], WORLDS_MARGIN[3], WORLDS_MARGIN[5]], dtype=np.float64)
         MIN_MARGIN = np.array([WORLDS_MARGIN[0], WORLDS_MARGIN[2], WORLDS_MARGIN[4]], dtype=np.float64)
         MIN_DISTANCE = 0
@@ -550,12 +550,45 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         return norm_and_clipped
 
     ################################################################################
-    def _minMaxScaling(self, val, min, max, standard_rng=True):
+    def clipAndNormalizeSphere_rev_local(self, spheres):
+        MAX_MARGIN = np.array([WORLDS_MARGIN[1], WORLDS_MARGIN[3], WORLDS_MARGIN[5]], dtype=np.float64)
+        MIN_MARGIN = np.array([WORLDS_MARGIN[0], WORLDS_MARGIN[2], WORLDS_MARGIN[4]], dtype=np.float64)
+        MIN_DISTANCE = 0
+
+        MAX_DISTANCE = np.linalg.norm(MAX_MARGIN - MIN_MARGIN) - DRONE_RADIUS
+        norm_and_clipped = []
+
+        max_dist_x = abs(WORLDS_MARGIN[0]) + abs(WORLDS_MARGIN[1])
+        max_dist_y = abs(WORLDS_MARGIN[2]) + abs(WORLDS_MARGIN[3])
+        max_dist_z = abs(WORLDS_MARGIN[4] + abs(WORLDS_MARGIN[5]))
+        # if field is -20,60 the min dist per axis is -80 +80
+        for s in spheres:
+            clipped_pos_x = np.clip(s['x_dist'] - s["radius"] - DRONE_RADIUS,  # posizione
+                                    -max_dist_x + s["radius"] + DRONE_RADIUS,  # min distanza con segno
+                                    max_dist_x - s["radius"] - DRONE_RADIUS)  # max distanza con segno
+            clipped_pos_y = np.clip(s['y_dist'] - s["radius"] - DRONE_RADIUS,
+                                    -max_dist_y + s["radius"] + DRONE_RADIUS,
+                                    max_dist_y - s["radius"] - DRONE_RADIUS)
+            clipped_pos_z = np.clip(s['z_dist'] - s["radius"] - DRONE_RADIUS,
+                                    -max_dist_z + s["radius"] + DRONE_RADIUS,
+                                    max_dist_z - s["radius"] - DRONE_RADIUS)
+
+            normalized_x = clipped_pos_x / (max_dist_x - s["radius"] - DRONE_RADIUS)
+            normalized_y = clipped_pos_y / (max_dist_y - s["radius"] - DRONE_RADIUS)
+            normalized_z = clipped_pos_z / (max_dist_z - s["radius"] - DRONE_RADIUS)
+            clipped_distance = np.clip(s["dist"] - s["radius"] - DRONE_RADIUS, MIN_DISTANCE, MAX_DISTANCE - s["radius"])
+            normalized_dist = clipped_distance / (MAX_DISTANCE - s["radius"])
+            norm_and_clipped.extend([normalized_x, normalized_y, normalized_z, normalized_dist])
+
+        return norm_and_clipped
+
+    ################################################################################
+    def _minMaxScaling(self, val, min_v, max_v, standard_rng=True):
         if standard_rng:
-            return (val - min) / (max - min)
+            return max(0, min((val - min_v) / (max_v - min_v), 1))
         else:
-            return 2 * (val - min) / (
-                    max - min) - 1
+            return max(-1, min(2 * (val - min_v) / (
+                    max_v - min_v) - 1, 1))
 
     ################################################################################
     def _clipAndNormalizeState(self,
@@ -606,9 +639,11 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         normalized_pos_x = self._minMaxScaling(pos_x, MIN_X, MAX_X, False)
         normalized_pos_y = self._minMaxScaling(pos_y, MIN_Y, MAX_Y, False)
         normalized_pos_z = self._minMaxScaling(pos_z, MIN_Z, MAX_Z, True)
-        normalized_rp = self._minMaxScaling(clipped_rp, -MAX_PITCH_ROLL, MAX_PITCH_ROLL, False)
+        normalized_rp = [self._minMaxScaling(val, -MAX_PITCH_ROLL, MAX_PITCH_ROLL, False) for val in clipped_rp]
+        # self._minMaxScaling(clipped_rp, -MAX_PITCH_ROLL, MAX_PITCH_ROLL, False)
         normalized_y = state[9] / np.pi  # No reason to clip
-        normalized_vel_xy = self._minMaxScaling(clipped_vel_xy, -MAX_LIN_VEL_XY, MAX_LIN_VEL_XY, False)
+        normalized_vel_xy = [self._minMaxScaling(val, -MAX_LIN_VEL_XY, MAX_LIN_VEL_XY, False) for val in clipped_vel_xy]
+        # normalized_vel_xy = self._minMaxScaling(clipped_vel_xy, -MAX_LIN_VEL_XY, MAX_LIN_VEL_XY, False)
         normalized_vel_z = self._minMaxScaling(clipped_vel_z, -MAX_LIN_VEL_Z, MAX_LIN_VEL_Z, False)
 
         normalized_ang_vel = state[13:16] / np.linalg.norm(state[13:16]) if np.linalg.norm(
