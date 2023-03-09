@@ -28,15 +28,12 @@ ObservationType(Enum):
     RGB = "rgb"     # RGB camera capture in each drone's POV
 
 """
-import argparse
 import os
 import sys
 import time
 from datetime import datetime
 
 sys.path.append('../')
-import numpy as np
-import ray
 import torch
 from ray.rllib.agents import ppo
 from ray.tune import register_env, CLIReporter
@@ -46,6 +43,67 @@ from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import Actio
 from gym_pybullet_drones.utils.Logger import Logger
 from gym_pybullet_drones.utils.utils import str2bool, sync
 from utils import build_env_by_name, from_env_name_to_class
+import ray
+
+from typing import Dict, Optional
+import argparse
+import numpy as np
+
+from ray.rllib.env import BaseEnv
+from ray.rllib.policy import Policy
+from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
+from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.algorithms.algorithm import Algorithm
+
+
+class MyCallbacks(DefaultCallbacks):
+    def on_episode_start(self, worker: RolloutWorker, base_env: BaseEnv,
+                         policies: Dict[str, Policy],
+                         episode: MultiAgentEpisode, **kwargs):
+        print("1")
+        pass
+
+    def on_episode_step(self, worker: RolloutWorker, base_env: BaseEnv,
+                        episode: MultiAgentEpisode, **kwargs):
+        for i in range(10):
+            if episode.last_info_for(i) is not None:
+                episode.custom_metrics["pol_{}_won".format(i)] = 1 if "won" in episode.last_info_for(i) else 0
+                if "death_pos" in episode.last_info_for(i) and episode.last_info_for(i)["death_pos"] is not None:
+                    episode.custom_metrics["death_pos_X{}".format(i)] = episode.last_info_for(i)["death_pos"][0]
+                    episode.custom_metrics["death_pos_Y{}".format(i)] = episode.last_info_for(i)["death_pos"][1]
+                    episode.custom_metrics["death_pos_Z{}".format(i)] = episode.last_info_for(i)["death_pos"][2]
+            else:
+                break
+
+    def on_episode_end(self, worker: RolloutWorker, base_env: BaseEnv,
+                       policies: Dict[str, Policy], episode: MultiAgentEpisode,
+                       **kwargs):
+        print("3")
+        pass
+
+    def on_sample_end(self, worker: RolloutWorker, samples: SampleBatch,
+                      **kwargs):
+        print("4")
+        pass
+
+    def on_train_result(self,
+                        *,
+                        algorithm: Optional["Algorithm"] = None,
+                        result: dict,
+                        trainer=None,
+                        **kwargs):
+        print("5")
+        pass
+
+    def on_postprocess_trajectory(
+            self, worker: RolloutWorker, episode: MultiAgentEpisode,
+            agent_id: str, policy_id: str, policies: Dict[str, Policy],
+            postprocessed_batch: SampleBatch,
+            original_batches: Dict[str, SampleBatch], **kwargs):
+        print("6")
+        pass
+
 
 ############################################################
 if __name__ == "__main__":
@@ -58,7 +116,7 @@ if __name__ == "__main__":
     parser.add_argument('--obs', default='kin', type=ObservationType, help='Observation space (default: kin)',
                         metavar='')
     ####NON CAMBIRE TIPO DI AZIONE, IMPLEMENTAZIONE DIPENDENTE, CLIPPING DA RIFARE!
-    parser.add_argument('--act', default='vel', type=ActionType, help='Action space (default: one_d_rpm)',
+    parser.add_argument('--act', default='rpm', type=ActionType, help='Action space (default: one_d_rpm)',
                         metavar='')
     parser.add_argument('--algo', default='cc', type=str, choices=['cc'], help='MARL approach (default: cc)',
                         metavar='')
@@ -143,6 +201,7 @@ if __name__ == "__main__":
     config = ppo.DEFAULT_CONFIG.copy()  # For the default config, see github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
 
     config = {  # **config,
+        "callbacks": MyCallbacks,
         "env": ARGS.env,
         "gamma": 0.9990,  # 0.999
         "num_workers": 0 + ARGS.workers,
@@ -153,14 +212,14 @@ if __name__ == "__main__":
         "num_sgd_iter": 50,
         "sgd_minibatch_size": 1024,
         "optimizer": "RAdam",
-        "entropy_coeff": 0.002,
+        "entropy_coeff": 0.0004,
         # "kl_coeff": 0.2,
         "train_batch_size": 4000,
         "kl_target": 0.01,
         # "num_envs_per_worker": 4,
         "lambda": 0.95,
         "model": {
-            "fcnet_hiddens": [256, 256, 128, 128, 64],
+            "fcnet_hiddens": [256, 256, 128, 64, 32],
             "fcnet_activation": "tanh",
             "use_lstm": False,
             "max_seq_len": 20,

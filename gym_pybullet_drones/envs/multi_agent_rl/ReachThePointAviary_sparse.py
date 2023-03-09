@@ -22,7 +22,7 @@ WORLDS_MARGIN_MINUS_DRONE_RADIUS[4] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[4] + DRON
 WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[5] - DRONE_RADIUS
 
 # threasold used to punish drone when it get near to spheres
-SPHERES_THRESHOLD = 0.75
+SPHERES_THRESHOLD = 0.30
 BOUNDARIES_THRESHOLD = 0.25
 DIFFICULTY = 'easy'
 # working dir need to be constant
@@ -102,7 +102,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.prev_drones_pos.append(self.INIT_XYZS[0, :])
         self.prev_drones_pos.append(self.INIT_XYZS[1, :])
         self.actual_step_drones_states = np.array([], dtype=np.float64)
-        self.drone_has_collided = {i: False for i in range(self.NUM_DRONES)}
+        self.drone_has_collided = {i: (False, [0, 0, 0]) for i in range(self.NUM_DRONES)}
+        self.drone_has_won = {i: False for i in range(self.NUM_DRONES)}
+
         self.drone_stacked_obs = {i: np.array([1 for _ in range(4 * 5)], dtype=np.float64) for i in
                                   range(self.NUM_DRONES)}
 
@@ -191,8 +193,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             rewards[i] = 0
             # drone has won
             if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
-                self.drone_has_collided[i] = True
+                self.drone_has_collided[i] = (True, self.actual_step_drones_states[i, 0:3])
                 rewards[i] = 100
+                self.drone_has_won[i] = True
             else:
                 rewards[i] += punishment_near_spheres
                 rewards[i] += pushishment_near_walls
@@ -219,7 +222,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         """
         neg_rew, collided = self.boundaries_incremental_punishment(self.actual_step_drones_states[drone_id, 0:3])
         if collided:
-            self.drone_has_collided[drone_id] = True
+            self.drone_has_collided[drone_id] = (True, self.actual_step_drones_states[drone_id, 0:3])
             return COLLISION_MALUS
         else:
             return neg_rew
@@ -237,7 +240,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             if dist <= SPHERES_THRESHOLD:
                 if dist <= 0:
                     # drone collide with a sphere
-                    self.drone_has_collided[drone_index] = True
+                    self.drone_has_collided[drone_index] = (True, self.actual_step_drones_states[drone_index, 0:3])
                     reward = COLLISION_MALUS
                     break
                 # the more near the drone gets the more penalty it receive
@@ -250,7 +253,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         import random
         self.episode += 1
         self.prev_drones_pos = []
-
+        self.drone_has_won = {i: False for i in range(self.NUM_DRONES)}
         # check WORLDS_MARGIN for this, randomize the spawn position remaining away from sphere spawn area, need to be done before
         # super.reset()
         # self.INIT_XYZS[0] = np.array([random.randrange(2, 3), random.randrange(0, 2), random.randrange(2, 8)])
@@ -261,7 +264,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
         self.prev_drones_pos.append(self.INIT_XYZS[0, :])
         self.prev_drones_pos.append(self.INIT_XYZS[1, :])
-        self.drone_has_collided = {i: False for i in range(self.NUM_DRONES)}
+        self.drone_has_collided = {i: (False, [0, 0, 0]) for i in range(self.NUM_DRONES)}
         self.drone_stacked_obs = {i: np.array([1 for _ in range(4 * 5)], dtype=np.float64) for i in
                                   range(self.NUM_DRONES)}
         return super().reset()
@@ -386,7 +389,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         local_dones = {}
         # Take only the alive drones and then using calculation from reward calculate dones
         for i in self.get_agent_ids().copy():
-            if self.drone_has_collided[i]:
+            if self.drone_has_collided[i][0]:
                 local_dones[i] = True
                 self.get_agent_ids().remove(i)
                 continue
@@ -418,7 +421,12 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             Dictionary of empty dictionaries.
 
         """
-        return {i: {} for i in self.get_agent_ids()}
+
+        info_dict = {i: {} for i in self.get_agent_ids()}
+        for i in self.get_agent_ids():
+            info_dict[i]["won"] = self.drone_has_won[i]
+            info_dict[i]["death_pos"] = self.drone_has_collided[i][1] if self.drone_has_collided[i][0] else None
+        return info_dict
 
     ################################################################################
 
