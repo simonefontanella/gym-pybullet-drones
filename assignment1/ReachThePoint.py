@@ -61,7 +61,6 @@ class MyCallbacks(DefaultCallbacks):
     def on_episode_start(self, worker: RolloutWorker, base_env: BaseEnv,
                          policies: Dict[str, Policy],
                          episode: MultiAgentEpisode, **kwargs):
-        print("1")
         pass
 
     def on_episode_step(self, worker: RolloutWorker, base_env: BaseEnv,
@@ -69,22 +68,20 @@ class MyCallbacks(DefaultCallbacks):
         for i in range(10):
             if episode.last_info_for(i) is not None:
                 episode.custom_metrics["pol_{}_won".format(i)] = 1 if "won" in episode.last_info_for(i) else 0
-                if "death_pos" in episode.last_info_for(i) and episode.last_info_for(i)["death_pos"] is not None:
-                    episode.custom_metrics["death_pos_X{}".format(i)] = episode.last_info_for(i)["death_pos"][0]
-                    episode.custom_metrics["death_pos_Y{}".format(i)] = episode.last_info_for(i)["death_pos"][1]
-                    episode.custom_metrics["death_pos_Z{}".format(i)] = episode.last_info_for(i)["death_pos"][2]
+                if "pos" in episode.last_info_for(i) and episode.last_info_for(i)["pos"] is not None:
+                    episode.custom_metrics["pos_X{}".format(i)] = episode.last_info_for(i)["pos"][0]
+                    episode.custom_metrics["pos_Y{}".format(i)] = episode.last_info_for(i)["pos"][1]
+                    episode.custom_metrics["pos_Z{}".format(i)] = episode.last_info_for(i)["pos"][2]
             else:
                 break
 
     def on_episode_end(self, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        **kwargs):
-        print("3")
         pass
 
     def on_sample_end(self, worker: RolloutWorker, samples: SampleBatch,
                       **kwargs):
-        print("4")
         pass
 
     def on_train_result(self,
@@ -93,7 +90,6 @@ class MyCallbacks(DefaultCallbacks):
                         result: dict,
                         trainer=None,
                         **kwargs):
-        print("5")
         pass
 
     def on_postprocess_trajectory(
@@ -101,7 +97,6 @@ class MyCallbacks(DefaultCallbacks):
             agent_id: str, policy_id: str, policies: Dict[str, Policy],
             postprocessed_batch: SampleBatch,
             original_batches: Dict[str, SampleBatch], **kwargs):
-        print("6")
         pass
 
 
@@ -116,7 +111,7 @@ if __name__ == "__main__":
     parser.add_argument('--obs', default='kin', type=ObservationType, help='Observation space (default: kin)',
                         metavar='')
     ####NON CAMBIRE TIPO DI AZIONE, IMPLEMENTAZIONE DIPENDENTE, CLIPPING DA RIFARE!
-    parser.add_argument('--act', default='rpm', type=ActionType, help='Action space (default: one_d_rpm)',
+    parser.add_argument('--act', default='vel', type=ActionType, help='Action space (default: one_d_rpm)',
                         metavar='')
     parser.add_argument('--algo', default='cc', type=str, choices=['cc'], help='MARL approach (default: cc)',
                         metavar='')
@@ -208,16 +203,18 @@ if __name__ == "__main__":
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-        "lr": 0.00001,
-        "num_sgd_iter": 50,
-        "sgd_minibatch_size": 1024,
+        "lr": 5e-7,
+        "vf_clip_param": 100,
+        "clip_param": 0.1,
+        "num_sgd_iter": 90,
+        "sgd_minibatch_size": 2048,
         "optimizer": "RAdam",
-        "entropy_coeff": 0.0004,
+        "entropy_coeff": 0.0005,
         # "kl_coeff": 0.2,
-        "train_batch_size": 4000,
+        "train_batch_size": 4096,
         "kl_target": 0.01,
         # "num_envs_per_worker": 4,
-        "lambda": 0.95,
+        "lambda": 0.90,
         "model": {
             "fcnet_hiddens": [256, 256, 128, 64, 32],
             "fcnet_activation": "tanh",

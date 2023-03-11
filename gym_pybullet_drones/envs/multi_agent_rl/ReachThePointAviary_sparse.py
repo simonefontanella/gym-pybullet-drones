@@ -8,7 +8,8 @@ from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMul
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 
-COLLISION_MALUS = -20
+WALL_COLLISION_MALUS = -500
+SPHERE_COLLISION_MALUS = -100
 DRONE_RADIUS = .07
 WORLDS_MARGIN = [-20, 60, -10, 10, 0, 10]  # minX maxX minY maxY minZ maxZ
 WORLDS_MARGIN_MINUS_DRONE_RADIUS = WORLDS_MARGIN.copy()
@@ -82,7 +83,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.episode = 0
         self.closest_sphere_distance = {}
         self.prev_sphere_treshold = 0
-        self.prev_drones_pos = []
         super().__init__(drone_model=drone_model,
                          num_drones=num_drones,
                          neighbourhood_radius=neighbourhood_radius,
@@ -99,8 +99,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.EPISODE_LEN_SEC = 200
         self.last_drones_dist = [1000000 for _ in self.get_agent_ids()]
         self.done_ep = {i: False for i in self.get_agent_ids()}
-        self.prev_drones_pos.append(self.INIT_XYZS[0, :])
-        self.prev_drones_pos.append(self.INIT_XYZS[1, :])
+        self.prev_x_drones_pos = {int(i): self.INIT_XYZS[i, 0] for i in range(self.NUM_DRONES)}
         self.actual_step_drones_states = np.array([], dtype=np.float64)
         self.drone_has_collided = {i: (False, [0, 0, 0]) for i in range(self.NUM_DRONES)}
         self.drone_has_won = {i: False for i in range(self.NUM_DRONES)}
@@ -194,27 +193,35 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             # drone has won
             if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
                 self.drone_has_collided[i] = (True, self.actual_step_drones_states[i, 0:3])
-                rewards[i] = 100
+                rewards[i] = 500
                 self.drone_has_won[i] = True
             else:
-                rewards[i] += punishment_near_spheres
-                rewards[i] += pushishment_near_walls
-                rewards[i] += self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
-                                                       self.prev_drones_pos[i],
-                                                       self.actual_step_drones_states[i, 10])
+                if punishment_near_spheres != 0 or pushishment_near_walls != 0:
+                    rewards[i] = punishment_near_spheres
+                    rewards[i] += pushishment_near_walls
+                else:
+                    rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
+                                                          self.prev_x_drones_pos[i],
+                                                          self.actual_step_drones_states[i, 10])
 
-            self.prev_drones_pos[i] = self.actual_step_drones_states[i, 0:3]
+            if self.actual_step_drones_states[i, 0] > self.prev_x_drones_pos[i]:
+                self.prev_x_drones_pos[i] = self.actual_step_drones_states[i, 0]
+
         return rewards
 
     ################################################################################
-    def rewardBaseOnForward(self, drone_pos, prev_drone_pos, vel_x):
+    def rewardBaseOnForward(self, drone_pos, prev_x_drone_pos, vel_x):
         """Compute the reward based on distance from x, if the drone approaches the target point (x=WORLDS_MARGIN[1]) the reward goes up
         """
         # return -0.5 * np.linalg.norm(np.array([WORLDS_MARGIN[1], drone_pos[1], drone_pos[2]]) - drone_pos)
         # Speed max is self.SPEED_LIMIT, see BaseMultiagentAviary, use min max scaling
         vel_x = vel_x if vel_x <= self.SPEED_LIMIT else self.SPEED_LIMIT
-        return self._minMaxScaling(vel_x, 0, self.SPEED_LIMIT) if (
-                prev_drone_pos[0] < drone_pos[0] and vel_x > self.SPEED_LIMIT * 0.5) else 0
+        if prev_x_drone_pos < drone_pos[0] and vel_x > self.SPEED_LIMIT * 0.25:
+            return self._minMaxScaling(vel_x, 0, self.SPEED_LIMIT)
+        elif prev_x_drone_pos > drone_pos[0]:
+            return -0.1
+        else:
+            return 0
 
     ################################################################################
     def negRewardBaseOnTouchBoundary(self, drone_id):
@@ -223,7 +230,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         neg_rew, collided = self.boundaries_incremental_punishment(self.actual_step_drones_states[drone_id, 0:3])
         if collided:
             self.drone_has_collided[drone_id] = (True, self.actual_step_drones_states[drone_id, 0:3])
-            return COLLISION_MALUS
+            return WALL_COLLISION_MALUS
         else:
             return neg_rew
 
@@ -241,7 +248,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                 if dist <= 0:
                     # drone collide with a sphere
                     self.drone_has_collided[drone_index] = (True, self.actual_step_drones_states[drone_index, 0:3])
-                    reward = COLLISION_MALUS
+                    reward = SPHERE_COLLISION_MALUS
                     break
                 # the more near the drone gets the more penalty it receive
                 reward = -(2 * (SPHERES_THRESHOLD - dist))
@@ -252,7 +259,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
     def reset(self):
         import random
         self.episode += 1
-        self.prev_drones_pos = []
         self.drone_has_won = {i: False for i in range(self.NUM_DRONES)}
         # check WORLDS_MARGIN for this, randomize the spawn position remaining away from sphere spawn area, need to be done before
         # super.reset()
@@ -262,8 +268,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.INIT_XYZS[0] = np.array([random.randrange(-6, -3), random.randrange(-5, 5), random.randrange(2, 8)])
         self.INIT_XYZS[1] = np.array([random.randrange(-6, -3), random.randrange(-5, 5), random.randrange(2, 8)])
 
-        self.prev_drones_pos.append(self.INIT_XYZS[0, :])
-        self.prev_drones_pos.append(self.INIT_XYZS[1, :])
+        self.prev_x_drones_pos = {int(i): self.INIT_XYZS[i, 0] for i in range(self.NUM_DRONES)}
         self.drone_has_collided = {i: (False, [0, 0, 0]) for i in range(self.NUM_DRONES)}
         self.drone_stacked_obs = {i: np.array([1 for _ in range(4 * 5)], dtype=np.float64) for i in
                                   range(self.NUM_DRONES)}
@@ -425,7 +430,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         info_dict = {i: {} for i in self.get_agent_ids()}
         for i in self.get_agent_ids():
             info_dict[i]["won"] = self.drone_has_won[i]
-            info_dict[i]["death_pos"] = self.drone_has_collided[i][1] if self.drone_has_collided[i][0] else None
+            info_dict[i]["pos"] = self.actual_step_drones_states[i, 0:3]
         return info_dict
 
     ################################################################################
