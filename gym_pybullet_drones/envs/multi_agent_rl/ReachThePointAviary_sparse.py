@@ -218,7 +218,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # return -0.5 * np.linalg.norm(np.array([WORLDS_MARGIN[1], drone_pos[1], drone_pos[2]]) - drone_pos)
         # Speed max is self.SPEED_LIMIT, see BaseMultiagentAviary, use min max scaling
         vel_x = vel_x if vel_x <= self.SPEED_LIMIT else self.SPEED_LIMIT
-        if prev_x_drone_pos < drone_pos[0] and vel_x > self.SPEED_LIMIT * 0.25:
+        if prev_x_drone_pos < drone_pos[0] and vel_x > self.SPEED_LIMIT * 0.5:
             return self._minMaxScaling(vel_x, 0, self.SPEED_LIMIT)
         else:
             return 0
