@@ -242,15 +242,16 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             # drone has won
             if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
                 self.drone_has_collided[i] = (True, self.actual_step_drones_states[i, 0:3])
-                rewards[i] = 500
+                rewards[i] = 10
                 self.drone_has_won[i] = True
             else:
 
                 rewards[i] += punishment_near_spheres
                 rewards[i] += pushishment_near_walls
-                rewards[i] += self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
-                                                       self.prev_x_drones_pos[i],
-                                                       self.actual_step_drones_states[i, 10])
+                # rewards[i] += self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
+                #                                       self.prev_x_drones_pos[i],
+                #                                       self.actual_step_drones_states[i, 10])
+                rewards[i] += self.rewardOnDistance(self.actual_step_drones_states[i, :3], self.prev_x_drones_pos[i])
 
             if self.actual_step_drones_states[i, 0] > self.prev_x_drones_pos[i]:
                 self.prev_x_drones_pos[i] = self.actual_step_drones_states[i, 0]
@@ -270,6 +271,15 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             return 0
 
     ################################################################################
+    def rewardOnDistance(self, drone_pos, prev_x_drone_pos):
+
+        if int(prev_x_drone_pos / 5) < int(drone_pos[0] / 5):
+            return 2
+        else:
+            return 0
+
+    ################################################################################
+
     def negRewardBaseOnTouchBoundary(self, drone_id):
         """ If the drones touch world boundary receive a reward of -100
         """
