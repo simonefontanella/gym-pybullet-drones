@@ -8,8 +8,8 @@ from gym_pybullet_drones.envs.multi_agent_rl.BaseMultiagentAviary import BaseMul
 from gym_pybullet_drones.envs.single_agent_rl.BaseSingleAgentAviary import ActionType, ObservationType
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 
-WALL_COLLISION_MALUS = -500
-SPHERE_COLLISION_MALUS = -100
+WALL_COLLISION_MALUS = -5
+SPHERE_COLLISION_MALUS = -2
 DRONE_RADIUS = .07
 WORLDS_MARGIN = [-20, 60, -10, 10, 0, 10]  # minX maxX minY maxY minZ maxZ
 WORLDS_MARGIN_MINUS_DRONE_RADIUS = WORLDS_MARGIN.copy()
@@ -218,7 +218,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # return -0.5 * np.linalg.norm(np.array([WORLDS_MARGIN[1], drone_pos[1], drone_pos[2]]) - drone_pos)
         # Speed max is self.SPEED_LIMIT, see BaseMultiagentAviary, use min max scaling
         vel_x = vel_x if vel_x <= self.SPEED_LIMIT else self.SPEED_LIMIT
-        if prev_x_drone_pos < drone_pos[0] and vel_x > self.SPEED_LIMIT * 0.5:
+        if prev_x_drone_pos < drone_pos[0]:
             return self._minMaxScaling(vel_x, 0, self.SPEED_LIMIT)
         else:
             return 0
