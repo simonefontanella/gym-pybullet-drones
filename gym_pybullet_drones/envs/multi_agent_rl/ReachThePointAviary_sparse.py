@@ -14,6 +14,8 @@ DRONE_RADIUS = .07
 WORLDS_MARGIN = [-20, 60, -10, 10, 0, 10]  # minX maxX minY maxY minZ maxZ
 WORLDS_MARGIN_MINUS_DRONE_RADIUS = WORLDS_MARGIN.copy()
 
+NUMBER_OF_STACKED_OBS = 3
+
 # world margin alredy take the radius of the drone
 WORLDS_MARGIN_MINUS_DRONE_RADIUS[0] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[0] + DRONE_RADIUS
 WORLDS_MARGIN_MINUS_DRONE_RADIUS[1] = WORLDS_MARGIN_MINUS_DRONE_RADIUS[1] - DRONE_RADIUS
@@ -104,7 +106,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         self.drone_has_collided = {i: (False, [0, 0, 0]) for i in range(self.NUM_DRONES)}
         self.drone_has_won = {i: False for i in range(self.NUM_DRONES)}
 
-        self.drone_stacked_obs = {i: np.array([1 for _ in range(4 * 5)], dtype=np.float64) for i in
+        self.drone_stacked_obs = {i: np.array([1 for _ in range(4 * 5)], dtype=np.float64)
+                                  for i in
                                   range(self.NUM_DRONES)}
 
     ################################################################################
@@ -435,7 +438,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
 
     ################################################################################
 
-    def _observationSpace(self):
+    def _observationSpaceOld(self):
         from gym import spaces
         # x is from 0 to 1, because we don't care about behind spheres
         #             x_dist  y_dist  z_dist r   sphere
@@ -444,6 +447,23 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         #      X   Y  Z   R   P   Y   VX  VY  VZ  WX  WY  WZ  WBY WBZ
         low = [-1, -1, 0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0] + sphere_low
         high = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] + sphere_high
+
+        return spaces.Dict({i: spaces.Box(low=np.array(low),
+                                          high=np.array(high),
+                                          dtype=np.float64
+                                          ) for i in range(self.NUM_DRONES)})
+
+    ################################################################################
+
+    def _observationSpace(self):
+        from gym import spaces
+        # x is from 0 to 1, because we don't care about behind spheres
+        #             x_dist  y_dist  z_dist dist   sphere
+        sphere_low = [0, -1, -1, 0] * 10
+        sphere_high = [1, 1, 1, 1] * 10
+        #      X   Y  Z   R   P   Y   VX  VY  VZ  WX  WY  WZ  WBY WBZ
+        low = [-1, -1, 0, -1, 0] + sphere_low
+        high = [1, 1, 1, 1, 1] + sphere_high
 
         return spaces.Dict({i: spaces.Box(low=np.array(low),
                                           high=np.array(high),
@@ -466,7 +486,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # return {   i   : self._clipAndNormalizeState(self._getDroneStateVector(i)) for i in range(self.NUM_DRONES) }
         ############################################################
         #### OBS SPACE OF SIZE 52
-        obs_54 = np.zeros((self.NUM_DRONES, 54), dtype=np.float64)
+        obs_54 = np.zeros((self.NUM_DRONES, 45), dtype=np.float64)
         for i in self.get_agent_ids():
             drone_state = self._getDroneStateVector(i)
             obs = self._clipAndNormalizeState(drone_state)
@@ -476,9 +496,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             normalize_sphere = self.clipAndNormalizeSphere_rev_local(close_sphere)
 
             obs_54[i, :] = np.hstack(
-                [obs[0:3], obs[7:10], obs[10:13], obs[13:16], boundaries_distances,
+                [obs[0:3], boundaries_distances,
                  np.append(normalize_sphere[:4 * 5], self.drone_stacked_obs[i])]).reshape(
-                54, )
+                45, )
 
             self.drone_stacked_obs[i] = np.array(normalize_sphere[:4 * 5], dtype=np.float64)
 
