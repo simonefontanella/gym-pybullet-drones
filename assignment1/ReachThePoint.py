@@ -67,7 +67,7 @@ class MyCallbacks(DefaultCallbacks):
                         episode: MultiAgentEpisode, **kwargs):
         for i in range(10):
             if episode.last_info_for(i) is not None:
-                episode.custom_metrics["pol_{}_won".format(i)] = 1 if "won" in episode.last_info_for(i) else 0
+                # episode.custom_metrics["pol_{}_won".format(i)] = 1 if "won" in episode.last_info_for(i) else 0
                 if "pos" in episode.last_info_for(i) and episode.last_info_for(i)["pos"] is not None:
                     episode.custom_metrics["pos_X{}".format(i)] = episode.last_info_for(i)["pos"][0]
                     episode.custom_metrics["pos_Y{}".format(i)] = episode.last_info_for(i)["pos"][1]

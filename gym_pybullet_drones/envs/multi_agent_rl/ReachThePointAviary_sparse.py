@@ -311,8 +311,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # self.INIT_XYZS[0] = np.array([random.randrange(2, 3), random.randrange(0, 2), random.randrange(2, 8)])
         # self.INIT_XYZS[1] = np.array([random.randrange(2, 3), random.randrange(0, 1), random.randrange(2, 8)])
 
-        self.INIT_XYZS[0] = np.array([random.randrange(-6, -3), random.randrange(-5, 5), random.randrange(2, 8)])
-        self.INIT_XYZS[1] = np.array([random.randrange(-6, -3), random.randrange(-5, 5), random.randrange(2, 8)])
+        self.INIT_XYZS[0] = np.array([random.uniform(-6.0, -3.0), random.uniform(-5.0, 5.0), random.uniform(2.0, 7.0)])
+        self.INIT_XYZS[1] = np.array([random.uniform(-6.0, -3.0), random.uniform(-5.0, 5.0), random.uniform(2.0, 7.0)])
 
         self.prev_x_drones_pos = {int(i): self.INIT_XYZS[i, 0] for i in range(self.NUM_DRONES)}
         self.drone_has_collided = {i: (False, [0, 0, 0]) for i in range(self.NUM_DRONES)}
@@ -476,7 +476,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         info_dict = {i: {} for i in self.get_agent_ids()}
         for i in self.get_agent_ids():
             info_dict[i]["won"] = self.drone_has_won[i]
-            info_dict[i]["pos"] = self.actual_step_drones_states[i, 0:3]
+            info_dict[i]["pos"] = self.actual_step_drones_states[i, 0:3].copy()
         return info_dict
 
     ################################################################################
