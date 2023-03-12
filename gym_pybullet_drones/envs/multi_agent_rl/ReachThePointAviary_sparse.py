@@ -199,13 +199,12 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                 rewards[i] = 500
                 self.drone_has_won[i] = True
             else:
-                if punishment_near_spheres != 0 or pushishment_near_walls != 0:
-                    rewards[i] = punishment_near_spheres
-                    rewards[i] += pushishment_near_walls
-                else:
-                    rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
-                                                          self.prev_x_drones_pos[i],
-                                                          self.actual_step_drones_states[i, 10])
+
+                rewards[i] += punishment_near_spheres
+                rewards[i] += pushishment_near_walls
+                rewards[i] += self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
+                                                       self.prev_x_drones_pos[i],
+                                                       self.actual_step_drones_states[i, 10])
 
             if self.actual_step_drones_states[i, 0] > self.prev_x_drones_pos[i]:
                 self.prev_x_drones_pos[i] = self.actual_step_drones_states[i, 0]
@@ -221,8 +220,6 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         vel_x = vel_x if vel_x <= self.SPEED_LIMIT else self.SPEED_LIMIT
         if prev_x_drone_pos < drone_pos[0] and vel_x > self.SPEED_LIMIT * 0.25:
             return self._minMaxScaling(vel_x, 0, self.SPEED_LIMIT)
-        elif prev_x_drone_pos > drone_pos[0]:
-            return -0.1
         else:
             return 0
 
