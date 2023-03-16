@@ -546,7 +546,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             boundaries_distances = self.get_normalized_y_z_boundaries(drone_state[0:3])
             close_sphere = self.getClosestSpheres(drone_state[0:3])
             # normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere) # if used need to change _observationSpace
-            normalize_sphere = self.clipAndNormalizeSphere_rev_local(close_sphere)
+            normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere)
 
             obs_54[i, :] = np.hstack(
                 [obs[0:3], boundaries_distances,
