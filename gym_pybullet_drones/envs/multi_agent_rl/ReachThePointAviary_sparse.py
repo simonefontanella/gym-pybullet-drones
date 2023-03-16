@@ -131,11 +131,12 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         n_env = 100
         difficulty = "/" + DIFFICULTY + "/"
         if self.episode % 3 == 0:
-            env_number = str(randrange(n_env))
-            print('CHOOSEN_ENV' + env_number)
+            #env_number = str(randrange(n_env))
+            env_number=2
+            #print('CHOOSEN_ENV' + env_number)
             csv_file_path = os.path.dirname(
                 module_path.__file__) + "/environment_generator/generated_envs" + difficulty + "{0}/static_obstacles.csv".format(
-                "environment_" + env_number)
+                "environment_" + str(env_number))
 
             with open(csv_file_path, mode='r') as infile:
                 reader = csv.reader(infile)
@@ -545,8 +546,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             obs = self._clipAndNormalizeState(drone_state)
             boundaries_distances = self.get_normalized_y_z_boundaries(drone_state[0:3])
             close_sphere = self.getClosestSpheres(drone_state[0:3])
-            # normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere) # if used need to change _observationSpace
-            normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere)
+            normalize_sphere = self.clipAndNormalizeSphere_old(close_sphere) # if used need to change _observationSpace
+            #normalize_sphere = self.clipAndNormalizeSphere_rev_local(close_sphere)
 
             obs_54[i, :] = np.hstack(
                 [obs[0:3], boundaries_distances,
