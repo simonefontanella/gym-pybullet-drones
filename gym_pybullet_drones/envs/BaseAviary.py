@@ -383,6 +383,7 @@ class BaseAviary(gym.Env):
         self._updateAndStoreKinematicInformation()
         #### Prepare the return values #############################
         obs = self._computeObs()
+        self.obs = obs.copy()
         reward = self._computeReward()
         done = self._computeDone()
         info = self._computeInfo()
