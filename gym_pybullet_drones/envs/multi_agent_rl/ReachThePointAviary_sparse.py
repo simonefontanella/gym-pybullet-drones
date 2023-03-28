@@ -42,7 +42,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                  drone_model: DroneModel = DroneModel.CF2X,
                  num_drones: int = 2,
                  neighbourhood_radius: float = np.inf,
-                 initial_xyzs=None,
+                 initial_xyzs=np.vstack([np.array([0, 0]), \
+                           np.array([0, 0]), \
+                           np.ones(2)]).transpose().reshape(2, 3),
                  initial_rpys=None,
                  physics: Physics = Physics.PYB,
                  freq: int = 240,
@@ -336,7 +338,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         # super.reset()
         # self.INIT_XYZS[0] = np.array([random.randrange(2, 3), random.randrange(0, 2), random.randrange(2, 8)])
         # self.INIT_XYZS[1] = np.array([random.randrange(2, 3), random.randrange(0, 1), random.randrange(2, 8)])
-
+        self.INIT_XYZS = np.vstack([np.array([0, 0]), \
+                           np.array([0, 0]), \
+                           np.ones(2)]).transpose().reshape(2, 3)
         self.INIT_XYZS[0] = np.array([random.randrange(-6, -3), random.randrange(-5, 5), random.randrange(2, 8)])
         self.INIT_XYZS[1] = np.array([random.randrange(-6, -3), random.randrange(-5, 5), random.randrange(2, 8)])
 

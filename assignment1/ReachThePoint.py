@@ -240,9 +240,9 @@ if __name__ == "__main__":
     }
 
     stop = {
-        "timesteps_total": 5000000,  # 100000 ~= 10'
+        "timesteps_total": 1000000,  # 100000 ~= 10'
         # "episode_reward_mean": 0,
-        # "training_iteration": 100,
+        # "training_iteration": 99,
     }
 
     if not ARGS.exp:

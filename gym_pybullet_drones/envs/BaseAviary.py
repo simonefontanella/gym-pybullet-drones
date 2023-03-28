@@ -295,7 +295,7 @@ class BaseAviary(gym.Env):
                     max_position_x = self._getDroneStateVector(i)[0]
                     cameraTargetPosition = self._getDroneStateVector(i)
         cameraTargetPosition = cameraTargetPosition[0:3]
-        if CAMERA_FPV:
+        if True:#CAMERA_FPV:
             p.resetDebugVisualizerCamera(cameraDistance=0.4,
                                          cameraYaw=-90,
                                          cameraPitch=-20,
