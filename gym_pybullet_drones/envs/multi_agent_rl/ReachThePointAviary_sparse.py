@@ -265,6 +265,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             # if self.drone_has_collided[i]:
             #    rewards[i] = 0
             #    continue
+            punishment_near_spheres = self.negRewardBaseOnSphereDistance(i)
+            pushishment_near_walls = self.negRewardBaseOnTouchBoundary(i)
 
             rewards[i] = 0.002
             # drone has won
