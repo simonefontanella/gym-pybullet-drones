@@ -203,7 +203,7 @@ if __name__ == "__main__":
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-        "lr": 2e-5,
+        "lr": 1e-5,
         "vf_clip_param": 10,
         "clip_param": 0.1,
         "num_sgd_iter": 45,
@@ -215,7 +215,7 @@ if __name__ == "__main__":
         "kl_target": 0.01,
         # "num_envs_per_worker": 4,
         # "lambda": 0.90,
-        "lambda": 1,
+        "lambda": 0.9,
         "model": {
             # [256,256,256]
             "fcnet_hiddens": [256, 256, 128, 128, 64, 64],

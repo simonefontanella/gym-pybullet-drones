@@ -130,7 +130,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 0)
         n_env = 100
         difficulty = "/" + DIFFICULTY + "/"
-        if self.episode % 3 == 0:
+        if self.episode % 2 == 0:
             env_number = str(randrange(n_env))
             print('CHOOSEN_ENV' + env_number)
             csv_file_path = os.path.dirname(
@@ -177,7 +177,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
         if self.ACT_TYPE in [ActionType.RPM, ActionType.DYN, ActionType.VEL]:
             act_lower_bound = np.array([-1, -1])
             act_upper_bound = np.array([1, 1])
-            return spaces.Dict({i: spaces.MultiDiscrete([3, 3]) for i in range(self.NUM_DRONES)})
+            return spaces.Dict({i: spaces.MultiDiscrete([3, 3, 3]) for i in range(self.NUM_DRONES)})
 
         elif self.ACT_TYPE == ActionType.PID:
             size = 3
@@ -200,7 +200,7 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                                                   dtype=np.float64)
         new_action = {}
         for k, v in action.items():
-            new_action[k] = np.array([1, v[0] - 1, v[1] - 1, 1], dtype=np.float64)
+            new_action[k] = np.array([v[0] - 1, v[1] - 1, v[2] - 1, 1], dtype=np.float64)
         # x = {0: np.array([0.00001, 0, 0, 1]), 1: np.array([0.1, 0, 0, 1])}
         # if self.step_counter >= 100 and self.step_counter <= 600:
         #    x = {0: np.array([0.00001, 1, 0, 1]), 1: np.array([0.1, 0, 0, 1])}
@@ -266,7 +266,9 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
             punishment_near_spheres = self.negRewardBaseOnSphereDistance(i)
             pushishment_near_walls = self.negRewardBaseOnTouchBoundary(i)
 
-            rewards[i] = 0.002
+            rewards[i] = self.rewardBaseOnForward(self.actual_step_drones_states[i, :3],
+                                                  self.prev_x_drones_pos[i],
+                                                  self.actual_step_drones_states[i, 10]) / 1000
             # drone has won
             if self.actual_step_drones_states[i, 0] >= WORLDS_MARGIN[1]:
                 self.drone_has_collided[i] = (True, self.actual_step_drones_states[i, 0:3])
@@ -282,7 +284,8 @@ class ReachThePointAviary_sparse(BaseMultiagentAviary):
                 # c'è almeno una sfera tra tutte allineata in y e z
                 if self.obs[i][6:36:3].min() == 0 and self.obs[i][7:36:3].min() == 0:
                     rewards[i] -= 0.003
-
+            if self.actual_step_drones_states[i, 0] > self.prev_x_drones_pos[i]:
+                self.prev_x_drones_pos[i] = self.actual_step_drones_states[i, 0]
         return rewards
 
     ################################################################################
