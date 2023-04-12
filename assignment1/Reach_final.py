@@ -33,7 +33,7 @@ import sys
 import time
 from datetime import datetime
 
-sys.path.append('../')
+sys.path.append('/')
 import torch
 from ray.rllib.agents import ppo
 from ray.tune import register_env, CLIReporter
@@ -56,29 +56,38 @@ from ray.rllib.evaluation import MultiAgentEpisode, RolloutWorker
 from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.algorithms.algorithm import Algorithm
 
+from ray.tune.logger import LoggerCallback
+
 
 class MyCallbacks(DefaultCallbacks):
     def on_episode_start(self, worker: RolloutWorker, base_env: BaseEnv,
                          policies: Dict[str, Policy],
                          episode: MultiAgentEpisode, **kwargs):
-        pass
+
+        episode.custom_metrics["posizione_x{}".format(0)] = []
+        episode.custom_metrics["posizione_x{}".format(1)] = []
+        episode.user_data["user_pos_x{}".format(0)] = []
+        episode.user_data["user_pos_x{}".format(1)] = []
 
     def on_episode_step(self, worker: RolloutWorker, base_env: BaseEnv,
                         episode: MultiAgentEpisode, **kwargs):
         for i in range(10):
             if episode.last_info_for(i) is not None:
-                episode.custom_metrics["pol_{}_won".format(i)] = 1 if "won" in episode.last_info_for(i) else 0
+                # episode.custom_metrics["pol_{}_won".format(i)] = 1 if "won" in episode.last_info_for(i) else 0
                 if "pos" in episode.last_info_for(i) and episode.last_info_for(i)["pos"] is not None:
-                    episode.custom_metrics["pos_X{}".format(i)] = episode.last_info_for(i)["pos"][0]
+                    episode.custom_metrics["pos_X{}".format(i)] = (episode.last_info_for(i)["pos"][0])
                     episode.custom_metrics["pos_Y{}".format(i)] = episode.last_info_for(i)["pos"][1]
                     episode.custom_metrics["pos_Z{}".format(i)] = episode.last_info_for(i)["pos"][2]
+                    episode.custom_metrics["posizione_x{}".format(i)].append(episode.last_info_for(i)["pos"][0])
+                    episode.user_data["user_pos_x{}".format(i)].append(episode.last_info_for(i)["pos"][0])
             else:
                 break
+
+        # print(episode.custom_metrics["pos_X{}".format(0)])
 
     def on_episode_end(self, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        **kwargs):
-        
         pass
 
     def on_sample_end(self, worker: RolloutWorker, samples: SampleBatch,
@@ -101,13 +110,21 @@ class MyCallbacks(DefaultCallbacks):
         pass
 
 
+class CustomLoggerCallback(LoggerCallback):
+    """Custom logger interface"""
+
+    def log_trial_result(self, iteration, trials, result):
+        print(f"TestLogger for trial {trials}: {result}")
+
+
 ############################################################
 if __name__ == "__main__":
 
     #### Define and parse (optional) arguments for the script ##
     parser = argparse.ArgumentParser(description='Multi-agent reinforcement learning experiments script')
     parser.add_argument('--num_drones', default=2, type=int, help='Number of drones (default: 2)', metavar='')
-    parser.add_argument('--env', default='ReachThePointAviary_sparse', type=str, choices=['ReachThePointAviary_sparse'],
+    parser.add_argument('--env', default='ReachThePointAviary_sparse_one', type=str,
+                        choices=['ReachThePointAviary_sparse'],
                         help='Task (default: leaderfollower)', metavar='')
     parser.add_argument('--obs', default='kin', type=ObservationType, help='Observation space (default: kin)',
                         metavar='')
@@ -122,9 +139,12 @@ if __name__ == "__main__":
     parser.add_argument('--gui', default=False, type=str2bool,
                         help='Enable gui rendering', metavar='')
     parser.add_argument('--train', default=False, type=str2bool,
-                        help='If enabled is in training mode, if not is in tuning mode, need exp to be not defined',
+                        help='If enabled is in training if not is in tuning mode, need exp to be not defined',
                         metavar='')
     parser.add_argument('--exp', type=str,
+                        help='The experiment folder written as ./results/save-<env>-<num_drones>-<algo>-<obs>-<act>-<time_date>',
+                        metavar='')
+    parser.add_argument('--nTest', type=int,
                         help='The experiment folder written as ./results/save-<env>-<num_drones>-<algo>-<obs>-<act>-<time_date>',
                         metavar='')
 
@@ -136,13 +156,6 @@ if __name__ == "__main__":
         "%m.%d.%Y_%H.%M.%S")
     if not os.path.exists(filename):
         os.makedirs(filename + '/')
-
-    #
-    # #### Print out current git commit hash #####################
-    # if platform == "linux" or platform == "darwin":
-    #     git_commit = subprocess.check_output(["git", "describe", "--tags"]).strip()
-    #     with open(filename + '/git_commit.txt', 'w+') as f:
-    #         f.write(str(git_commit))
 
     #### Constants, and errors #################################
     if ARGS.obs == ObservationType.KIN:
@@ -176,11 +189,6 @@ if __name__ == "__main__":
     INIT_XYZS = np.vstack([np.array([0, 0]), \
                            np.array([0, 0]), \
                            np.ones(2)]).transpose().reshape(2, 3)
-    # INIT_XYZS = np.vstack([np.array([9.2, -5]), \
-    #                        np.array([3.4508020977360783, 0]), \
-    #                        np.array([5.722600605763271, 1])]).transpose().reshape(2, 3)
-
-    # 9.468482773404116, 3.4508020977360783, 5.722600605763271
 
     env_callable, obs_space, act_space, temp_env = build_env_by_name(env_class=from_env_name_to_class(ARGS.env),
                                                                      exp=ARGS.exp,
@@ -229,7 +237,7 @@ if __name__ == "__main__":
     }
 
     stop = {
-        "timesteps_total": 5000000,  # 100000 ~= 10'
+        "timesteps_total": int(4e6),  # 100000 ~= 10'
         # "episode_reward_mean": 0,
         # "training_iteration": 100,
     }
@@ -240,6 +248,8 @@ if __name__ == "__main__":
         if ARGS.train:
 
             agent = ppo.PPOTrainer(config=config)
+            policy = agent.get_policy()
+            print(policy)
             for i in range(10000):
                 result = agent.train()
                 print(pretty_print(result))
@@ -249,6 +259,9 @@ if __name__ == "__main__":
                     print(f"Checkpoint saved in directory {checkpoint_dir}")
 
         else:
+            # from ray.tune import Callback
+            # from ray.air import session
+
             results = tune.run(
                 "PPO",
                 stop=stop,
@@ -257,6 +270,7 @@ if __name__ == "__main__":
                 progress_reporter=CLIReporter(metric_columns=["loss", "accuracy", "training_iteration"],
                                               max_progress_rows=10),
                 # checkpoint_freq=50000,
+                # run_config=air.RunConfig(callbacks=[CustomLoggerCallback()]),
                 checkpoint_at_end=True,
                 local_dir=filename,
             )
@@ -291,8 +305,10 @@ if __name__ == "__main__":
         policy1 = agent.get_policy("pol1")
 
         #### Show, record a video, and log the model's performance #
+        drones_stored_data = {"d_data": []}
+
         obs = temp_env.reset()
-        temp_env.render()
+        temp_env.save_test_on_json(drones_stored_data, ARGS.nTest)
         logger = Logger(logging_freq_hz=int(temp_env.SIM_FREQ / temp_env.AGGR_PHY_STEPS),
                         num_drones=NUM_DRONES
                         )
@@ -306,28 +322,30 @@ if __name__ == "__main__":
             print("[ERROR] unknown ActionType")
             exit()
         start = time.time()
-        duration = 20000
+        duration = 500000
+        temp = {}
+        done = {0: False, 1: False}
+
         for i in range(duration * int(temp_env.SIM_FREQ / temp_env.AGGR_PHY_STEPS)):  # Up to 6''
             #### Deploy the policies ###################################
-            temp = {}
-            temp[0] = policy0.compute_single_action(
-                np.hstack(obs[0]))  # Counterintuitive order, check params.json
-            temp[1] = policy1.compute_single_action(np.hstack(obs[1]))
+            if 0 in obs:
+                temp[0] = policy0.compute_single_action(
+                    np.hstack(obs[0]))  # Counterintuitive order, check params.json
+            if 1 in obs:
+                temp[1] = policy1.compute_single_action(np.hstack(obs[1]))
+
             action = {0: temp[0][0], 1: temp[1][0]}
             obs, reward, done, info = temp_env.step(action)
-            temp_env.render()
-            if OBS == ObservationType.KIN:
-                for j in range(NUM_DRONES):
-                    logger.log(drone=j,
-                               timestamp=i / temp_env.SIM_FREQ,
-                               state=np.hstack([obs[j][0:3], np.zeros(4), obs[j][3:15], np.resize(action[j], (4))]),
-                               control=np.zeros(12)
-                               )
+            if True in done.values():
+                if done['__all__'] == True:
+                    break
+            #temp_env.render()
+            temp_env.save_test_on_json(drones_stored_data,ARGS.nTest)
             sync(np.floor(i * temp_env.AGGR_PHY_STEPS), start, temp_env.TIMESTEP)
-            if done["__all__"]: obs = temp_env.reset()  # OPTIONAL EPISODE HALT
+            # if done["__all__"]: obs = temp_env.reset()  # OPTIONAL EPISODE HALT
+
+        temp_env.print_data(drones_stored_data,ARGS.exp[2:])
         temp_env.close()
-        logger.save_as_csv("ma")  # Optional CSV save
-        logger.plot()
 
     #### Shut down Ray #########################################
     print("-------------------Ended------------------")
