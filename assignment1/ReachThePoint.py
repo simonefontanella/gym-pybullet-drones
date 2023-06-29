@@ -78,7 +78,7 @@ class MyCallbacks(DefaultCallbacks):
     def on_episode_end(self, worker: RolloutWorker, base_env: BaseEnv,
                        policies: Dict[str, Policy], episode: MultiAgentEpisode,
                        **kwargs):
-        
+
         pass
 
     def on_sample_end(self, worker: RolloutWorker, samples: SampleBatch,
@@ -204,9 +204,6 @@ if __name__ == "__main__":
         "num_gpus": torch.cuda.device_count(),
         "batch_mode": "complete_episodes",
         "framework": "torch",
-<<<<<<< HEAD
-        "lr": 2e-5,
-=======
         "lr": 1e-5,
         "vf_clip_param": 10,
         "clip_param": 0.1,
@@ -220,7 +217,6 @@ if __name__ == "__main__":
         # "num_envs_per_worker": 4,
         # "lambda": 0.90,
         "lambda": 0.9,
->>>>>>> b18f2eaa7a8adda24e1f6ac3e188f3ebc9069e59
         "model": {
             # [256,256,256]
             "fcnet_hiddens": [256, 256, 256],
